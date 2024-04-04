@@ -1,0 +1,5 @@
+build
+build-temp*
+.vscode
+*.sif
+.spack-env
