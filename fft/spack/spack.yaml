@@ -1,0 +1,17 @@
+spack:
+  specs: [cmake@3.23, cuda@12, gcc@11, intel-oneapi-compilers@2022, intel-oneapi-tbb@2021,
+    intel-oneapi-mkl@2022, yaml-cpp]
+  view: true
+  concretizer:
+    unify: true
+  modules:
+    default:
+      enable:
+      - tcl
+      tcl:
+        hash_length: 0
+        naming_scheme: '{compiler.name}/{compiler.version}/{name}/{version}'
+        all:
+          environment:
+            set:
+              '{name}_ROOT': '{prefix}'
