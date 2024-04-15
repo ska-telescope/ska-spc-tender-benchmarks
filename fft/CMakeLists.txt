@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(fft-benchmarks LANGUAGES CXX CUDA)
+project(fft-benchmarks LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,6 +27,11 @@ if(${FFT_BENCHMARK_ENABLE_NVIDIA})
     find_package(CUDAToolkit REQUIRED)
     target_link_libraries(fft-mkl PRIVATE CUDA::cufft CUDA::cudart)
     target_sources(fft-mkl PRIVATE inc/benchmark_nvidia.h src/benchmark_nvidia.cpp)
+    target_compile_options(fft-mkl PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+                       --generate-line-info
+                       --use_fast_math
+                       --relocatable-device-code=true
+                       >)
 endif()
 
 if(${FFT_BENCHMARK_ENABLE_CPU})

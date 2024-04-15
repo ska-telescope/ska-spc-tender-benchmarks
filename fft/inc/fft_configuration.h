@@ -32,6 +32,7 @@ namespace fft_benchmark
         hardware_type htype;
         size_t nx, ny;
         size_t nbatches;
+        size_t niterations;
         bool in_place;
     };
 

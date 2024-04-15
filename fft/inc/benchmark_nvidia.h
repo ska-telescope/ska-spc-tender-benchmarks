@@ -23,6 +23,11 @@ namespace fft_benchmark
                 CUDA_RT_CALL(cudaEventDestroy(event));
             }
 
+            cuda_event(const cuda_event&) = delete;
+            cuda_event& operator=(const cuda_event&) = delete;
+            cuda_event(cuda_event&&) = default;
+            cuda_event& operator=(cuda_event&&) = default;
+
             void record(cudaStream_t stream = 0)
             {
                 CUDA_RT_CALL(cudaEventRecord(event, stream));
@@ -38,10 +43,45 @@ namespace fft_benchmark
                 CUFFT_CALL(cufftCreate(&handle));
             }
 
+            cufft_plan(const cufft_plan&) = delete;
+            cufft_plan& operator=(const cufft_plan&) = delete;
+            cufft_plan(cufft_plan&&) = default;
+            cufft_plan& operator=(cufft_plan&&) = default;
+
             ~cufft_plan()
             {
                 CUFFT_CALL(cufftDestroy(handle));
             }
+        };
+
+        struct cuda_stream
+        {
+            cudaStream_t stream;
+
+            cuda_stream()
+            {
+                CUDA_RT_CALL(cudaStreamCreate(&stream));
+            }
+
+            ~cuda_stream()
+            {
+                CUDA_RT_CALL(cudaStreamDestroy(stream));
+            }
+
+            void synchronize()
+            {
+                CUDA_RT_CALL(cudaStreamSynchronize(stream));
+            }
+
+            void query()
+            {
+                CUDA_RT_CALL(cudaStreamQuery(stream));
+            }
+
+            cuda_stream(const cuda_stream&) = delete;
+            cuda_stream& operator=(const cuda_stream&) = delete;
+            cuda_stream(cuda_stream&&) = default;
+            cuda_stream& operator=(cuda_stream&&) = default;
         };
 
         double run(const configuration &configuration);
@@ -54,7 +94,7 @@ namespace fft_benchmark
         using real = float;
         using plan = nvidia::cufft_plan;
         static plan create_plan(const configuration &configuration);
-        static double run_fft(plan plan, transform_type ttype, complex *in, complex *out);
+        static double run_fft(const plan& plan, transform_type ttype, complex *in, complex *out);
     };
 
     template <>
@@ -64,6 +104,6 @@ namespace fft_benchmark
         using real = double;
         using plan = nvidia::cufft_plan;
         static plan create_plan(const configuration &configuration);
-        static double run_fft(plan plan, transform_type ttype, complex *in, complex *out);
+        static double run_fft(const plan& plan, transform_type ttype, complex *in, complex *out);
     };
 } // namespace fft_benchmark

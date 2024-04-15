@@ -1,6 +1,7 @@
 nbatches: 100
+niterations: 3000
 in_place: true
-dimensions: [[1024,1024]]
+dimensions: [[512,128]]
 float_types: [float]
 transform_types: [forward]
 hardware_types: [nvidia]
