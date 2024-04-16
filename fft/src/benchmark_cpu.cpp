@@ -1,4 +1,6 @@
+#ifdef FFT_BENCHMARK_ENABLE_PROFILING
 #include <ittnotify.h>
+#endif
 #include <tbb/parallel_for.h>
 
 #include "benchmark_cpu.h"
@@ -57,8 +59,10 @@ namespace fft_benchmark
         template <float_type ftype>
         double run_per_float(const configuration &configuration)
         {
+#ifdef FFT_BENCHMARK_ENABLE_PROFILING
             __itt_domain *domain = __itt_domain_create("FFT.Benchmark.MKL");
             __itt_string_handle *handle_main = __itt_string_handle_create("run");
+#endif
 
             const auto nx = configuration.nx;
             const auto ny = configuration.ny;
@@ -74,7 +78,9 @@ namespace fft_benchmark
 
             auto plan = fftw_type_helper<hardware_type::cpu, ftype>::create_plan(configuration);
 
+#ifdef FFT_BENCHMARK_ENABLE_PROFILING
             __itt_task_begin(domain, __itt_null, __itt_null, handle_main);
+#endif
             const auto begin_parallel = std::chrono::high_resolution_clock::now();
             tbb::parallel_for(
                 tbb::blocked_range<int>(0, configuration.nbatches), [&](const tbb::blocked_range<int> &range) {
@@ -86,9 +92,15 @@ namespace fft_benchmark
                     }
                 });
             const auto end_parallel = std::chrono::high_resolution_clock::now();
+#ifdef FFT_BENCHMARK_ENABLE_PROFILING
             __itt_task_end(domain);
-
+#endif
             fftw_type_helper<hardware_type::cpu, ftype>::destroy_plan(plan);
+            fftw_free(input_ptr);
+            if(!configuration.in_place)
+            {
+                fftw_free(output_ptr);
+            }
 
             return std::chrono::duration_cast<std::chrono::microseconds>(end_parallel - begin_parallel).count();
         }
