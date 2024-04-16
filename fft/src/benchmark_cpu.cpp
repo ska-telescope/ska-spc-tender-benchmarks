@@ -1,3 +1,4 @@
+#include <ittnotify.h>
 #include <tbb/parallel_for.h>
 
 #include "benchmark_cpu.h"
@@ -56,6 +57,9 @@ namespace fft_benchmark
         template <float_type ftype>
         double run_per_float(const configuration &configuration)
         {
+            __itt_domain *domain = __itt_domain_create("FFT.Benchmark.MKL");
+            __itt_string_handle *handle_main = __itt_string_handle_create("run");
+
             const auto nx = configuration.nx;
             const auto ny = configuration.ny;
             const auto n_samples = nx * ny;
@@ -70,6 +74,7 @@ namespace fft_benchmark
 
             auto plan = fftw_type_helper<hardware_type::cpu, ftype>::create_plan(configuration);
 
+            __itt_task_begin(domain, __itt_null, __itt_null, handle_main);
             const auto begin_parallel = std::chrono::high_resolution_clock::now();
             tbb::parallel_for(
                 tbb::blocked_range<int>(0, configuration.nbatches), [&](const tbb::blocked_range<int> &range) {
@@ -81,6 +86,7 @@ namespace fft_benchmark
                     }
                 });
             const auto end_parallel = std::chrono::high_resolution_clock::now();
+            __itt_task_end(domain);
 
             fftw_type_helper<hardware_type::cpu, ftype>::destroy_plan(plan);
 

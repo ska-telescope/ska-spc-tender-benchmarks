@@ -1,6 +1,6 @@
 #pragma once
 #include <cuda_runtime.h>
-#include <cufftXt.h>
+#include <cufft.h>
 
 #ifndef CUDA_RT_CALL
 #define CUDA_RT_CALL(call)                                                                                             \
