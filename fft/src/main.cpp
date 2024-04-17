@@ -39,7 +39,7 @@ int main(int argc, char **argv)
             break;
 #endif
         default:
-            std::cerr << "Invalid floating point type." << std::endl;
+            std::cerr << "Invalid hardware type." << std::endl;
             return -1;
         }
         std::cout << configuration.nx << ", " << configuration.ny << " => " << time << " µs" << std::endl;

@@ -28,6 +28,7 @@ endif()
 
 if(${FFT_BENCHMARK_ENABLE_NVIDIA})
   find_package(CUDAToolkit REQUIRED)
+  target_compile_definitions(fft-mkl PRIVATE FFT_BENCHMARK_ENABLE_NVIDIA=1)
   target_link_libraries(fft-mkl PRIVATE CUDA::cufft CUDA::cudart)
   target_sources(fft-mkl PRIVATE inc/benchmark_nvidia.h
                                  src/benchmark_nvidia.cpp)
@@ -38,6 +39,7 @@ endif()
 if(${FFT_BENCHMARK_ENABLE_CPU})
   find_package(TBB REQUIRED)
   find_package(MKL CONFIG REQUIRED)
+  target_compile_definitions(fft-mkl PRIVATE FFT_BENCHMARK_ENABLE_CPU=1)
   target_sources(fft-mkl PRIVATE inc/benchmark_cpu.h src/benchmark_cpu.cpp)
   target_include_directories(
     fft-mkl
