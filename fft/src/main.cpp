@@ -1,7 +1,13 @@
-#include "benchmark_cpu.h"
-#include "benchmark_nvidia.h"
-
 #include <iostream>
+#include <vector>
+
+#ifdef FFT_BENCHMARK_ENABLE_CPU
+#include "benchmark_cpu.h"
+#endif
+#ifdef FFT_BENCHMARK_ENABLE_NVIDIA
+#include "benchmark_nvidia.h"
+#endif
+#include "fft_configuration.h"
 
 int main(int argc, char **argv)
 {
@@ -22,12 +28,16 @@ int main(int argc, char **argv)
     {
         switch (configuration.htype)
         {
+#ifdef FFT_BENCHMARK_ENABLE_CPU
         case fft_benchmark::hardware_type::cpu:
             time = fft_benchmark::cpu::run(configuration);
             break;
+#endif
+#ifdef FFT_BENCHMARK_ENABLE_NVIDIA
         case fft_benchmark::hardware_type::nvidia:
             time = fft_benchmark::nvidia::run(configuration);
             break;
+#endif
         default:
             std::cerr << "Invalid floating point type." << std::endl;
             return -1;
