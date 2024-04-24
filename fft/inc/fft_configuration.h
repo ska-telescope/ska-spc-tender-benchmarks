@@ -22,7 +22,8 @@ namespace fft_benchmark
     {
         cpu,
         nvidia,
-        amd
+        amd,
+        heffte
     };
 
     struct configuration
@@ -31,8 +32,9 @@ namespace fft_benchmark
         transform_type ttype;
         hardware_type htype;
         size_t nx, ny;
-        size_t nbatches;
         size_t niterations;
+        size_t memorysize;
+        size_t max_data_bytes;
         bool in_place;
     };
 

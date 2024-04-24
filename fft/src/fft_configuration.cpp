@@ -114,21 +114,21 @@ namespace fft_benchmark
             {
                 hardware_types.push_back(fft_benchmark::hardware_type::nvidia);
             }
+            else if (hardware_type_string == "amd")
+            {
+                hardware_types.push_back(fft_benchmark::hardware_type::amd);
+            }
+            else if (hardware_type_string == "heffte")
+            {
+                hardware_types.push_back(fft_benchmark::hardware_type::heffte);
+            }
             else
             {
                 std::cerr << "Invalid hardware_type token " << hardware_type_string
-                          << " was found. Must be either cpu, nvidia or amd." << std::endl;
+                          << " was found. Must be either cpu, nvidia, amd or heffte." << std::endl;
                 exit(-1);
             }
         }
-
-        if (!yaml_config["nbatches"])
-        {
-            std::cerr << "Invalid nbatches section. Should look like this:" << std::endl;
-            std::cerr << "nbatches: <number of batches to run>" << std::endl;
-            exit(-1);
-        }
-        const size_t nbatches = yaml_config["nbatches"].as<size_t>();
 
         if (!yaml_config["niterations"])
         {
@@ -137,6 +137,14 @@ namespace fft_benchmark
             exit(-1);
         }
         const size_t niterations = yaml_config["niterations"].as<size_t>();
+
+        if (!yaml_config["memorysize"])
+        {
+            std::cerr << "Invalid memorysize section. Should look like this:" << std::endl;
+            std::cerr << "nbatches: <memory size to use in bytes>" << std::endl;
+            exit(-1);
+        }
+        const size_t memorysize = yaml_config["memorysize"].as<size_t>();
 
         const auto inplace_err_func = []() {
             std::cerr << "Invalid inplace section. Should look like this:" << std::endl;
@@ -170,8 +178,8 @@ namespace fft_benchmark
                         configuration.ttype = transform_type;
                         configuration.nx = dimension.first;
                         configuration.ny = dimension.second;
-                        configuration.nbatches = nbatches;
                         configuration.niterations = niterations;
+                        configuration.memorysize = memorysize;
                         configuration.in_place = in_place;
                         configuration.htype = hardware_type;
                         configurations.emplace_back(configuration);

@@ -1,6 +1,12 @@
 spack:
-  specs: [cmake@3.23, gcc@11, intel-oneapi-compilers, intel-oneapi-tbb, intel-oneapi-mkl,
-    yaml-cpp]
+  specs:
+    - cmake@3.25%gcc@13
+    - intel-oneapi-compilers
+    - intel-oneapi-tbb
+    - intel-oneapi-mkl
+    - intel-oneapi-mpi
+    - yaml-cpp%gcc@11
+    - heffte+fftw+mkl+cuda%gcc@11
   view: true
   concretizer:
     unify: true
