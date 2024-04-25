@@ -23,18 +23,38 @@ namespace fft_benchmark
         using real = double;
     };
 
-    template <typename target_tag>
+    template <hardware_type htype>
+    struct hardware_type_helper;
+
+    template <>
+    struct hardware_type_helper<hardware_type::cpu>
+    {
+        using target_tag = heffte::backend::mkl;
+    };
+
+    template <>
+    struct hardware_type_helper<hardware_type::nvidia>
+    {
+        using target_tag = heffte::backend::cufft;
+    };
+
+    template <>
+    struct hardware_type_helper<hardware_type::amd>
+    {
+        using target_tag = heffte::backend::rocfft;
+    };
+
+    template <hardware_type htype>
     struct fft_helper
     {
-        using backend_tag = typename heffte::backend::default_backend<target_tag>::type;
+        using backend_tag = typename hardware_type_helper<htype>::target_tag;
 
-        template <typename float_type>
         static auto create_plan(const configuration &configuration, MPI_Comm comm)
         {
-            heffte::box3d<> in_indexes({0, 0, 0},
-                                       {static_cast<int>(configuration.nx), static_cast<int>(configuration.ny), 1});
-            heffte::box3d<> out_indexes({0, 0, 0},
-                                        {static_cast<int>(configuration.nx), static_cast<int>(configuration.ny), 1});
+            heffte::box3d<> in_indexes(
+                {0, 0, 0}, {static_cast<int>(configuration.nx - 1), static_cast<int>(configuration.ny - 1), 1});
+            heffte::box3d<> out_indexes(
+                {0, 0, 0}, {static_cast<int>(configuration.nx - 1), static_cast<int>(configuration.ny - 1), 1});
 
             std::array<int, 3> proc_grid = heffte::proc_setup_min_surface(in_indexes, 1);
 
@@ -45,8 +65,6 @@ namespace fft_benchmark
             heffte::box3d<> const outbox = out_boxes[0];
 
             auto plan = heffte::fft3d<backend_tag>{inbox, outbox, comm};
-            std::vector<std::complex<float_type>> in(plan.size_inbox());
-
             return plan;
         }
 
@@ -64,21 +82,28 @@ namespace fft_benchmark
             }
         }
     };
-
-    struct time_result
+    struct benchmark_result
     {
+        enum class status_t
+        {
+            failed,
+            error,
+            correct
+        };
+
+        status_t status = status_t::failed;
         size_t batch_size = 0;
         size_t niterations = 0;
-        double init_time{0.};
-        double in_transfer_time{0.};
-        double compute_time{0.};
-        double out_transfer_time{0.};
+        double init_time{-1.};
+        double in_transfer_time{-1.};
+        double compute_time{-1.};
+        double out_transfer_time{-1.};
 
-        static time_result invalid_result()
+        static benchmark_result invalid_result()
         {
-            return time_result{0, 0, -1., -1., -1., -1.};
+            return benchmark_result{status_t::failed, 0, 0, -1., -1., -1., -1.};
         }
     };
 
-    time_result launch_benchmark(const fft_benchmark::configuration &configuration);
+    benchmark_result launch_benchmark(const fft_benchmark::configuration &configuration);
 } // namespace fft_benchmark

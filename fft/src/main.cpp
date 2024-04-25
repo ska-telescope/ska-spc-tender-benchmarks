@@ -38,7 +38,10 @@ void print_columns(const std::vector<std::array<std::string, N>> &data)
 void run(const std::vector<fft_benchmark::configuration> &configurations)
 {
     std::vector<std::string> titles;
-    std::vector<fft_benchmark::time_result> results;
+    std::vector<fft_benchmark::benchmark_result> results;
+
+    fft_benchmark::launch_benchmark(configurations.front());
+
     for (const auto &configuration : configurations)
     {
         results.emplace_back(fft_benchmark::launch_benchmark(configuration));
@@ -48,18 +51,28 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
         titles.emplace_back(title);
     }
 
-    std::vector<std::array<std::string, 7>> table;
+    std::vector<std::array<std::string, 8>> table;
 
-    std::array<std::string, 7> labels{"configuration",
-                                      "number of iterations",
-                                      "batch size",
-                                      "init time (us)",
-                                      "mean input transfer time (us)",
-                                      "mean compute time (us)",
-                                      "mean output transfer time (us)"};
+    std::array<std::string, 8> labels{"configuration",          "result",
+                                      "number of iterations",   "batch size",
+                                      "init time (us)",         "mean input transfer time (us)",
+                                      "mean compute time (us)", "mean output transfer time (us)"};
 
     const auto to_result_string = [](const double x) {
         return x < 0. ? "N/A" : std::to_string(static_cast<size_t>(x));
+    };
+
+    const auto to_correctness_string = [](const fft_benchmark::benchmark_result::status_t status) {
+        switch (status)
+        {
+        case fft_benchmark::benchmark_result::status_t::correct:
+            return std::string{"OK"};
+        case fft_benchmark::benchmark_result::status_t::error:
+            return std::string{"ERROR"};
+        case fft_benchmark::benchmark_result::status_t::failed:
+            return std::string{"FAILED"};
+        }
+        return std::string{};
     };
 
     table.emplace_back(labels);
@@ -67,7 +80,8 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
     {
         const auto &result = results[i];
         const auto &title = titles[i];
-        std::array<std::string, 7> row{title,
+        std::array<std::string, 8> row{title,
+                                       to_correctness_string(result.status),
                                        std::to_string(result.niterations),
                                        std::to_string(result.batch_size),
                                        to_result_string(result.init_time),
@@ -77,7 +91,12 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
         table.emplace_back(row);
     }
 
-    std::cout << "Benchmark results:\n\n\nb";
+    const auto title_max_length =
+        std::max_element(titles.cbegin(), titles.cend(), [](const std::string &a, const std::string &b) {
+            return a.size() < b.size();
+        })->size();
+
+    std::cout << "Benchmark results:\n";
     print_columns(table);
 }
 

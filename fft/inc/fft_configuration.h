@@ -18,6 +18,11 @@ namespace fft_benchmark
         inverse = 1
     };
 
+    inline transform_type invert(const transform_type t)
+    {
+        return t == transform_type::forward ? transform_type::inverse : transform_type::forward;
+    }
+
     enum class hardware_type
     {
         cpu,

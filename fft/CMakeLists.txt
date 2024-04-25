@@ -10,6 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_executable(fft-benchmarks)
 
 find_package(MPI REQUIRED)
+find_package(TBB REQUIRED)
 
 find_package(yaml-cpp CONFIG REQUIRED)
 target_include_directories(fft-benchmarks PRIVATE ${CMAKE_SOURCE_DIR}/inc)
@@ -18,6 +19,7 @@ target_sources(fft-benchmarks PRIVATE inc/fft_benchmark.h src/fft_benchmark.cpp)
 target_sources(fft-benchmarks PRIVATE src/main.cpp)
 target_link_libraries(fft-benchmarks PUBLIC yaml-cpp)
 target_link_libraries(fft-benchmarks PUBLIC MPI::MPI_CXX)
+target_link_libraries(fft-benchmarks PUBLIC TBB::tbb)
 
 find_package(Heffte REQUIRED)
 target_compile_definitions(fft-benchmarks PRIVATE FFT_BENCHMARK_ENABLE_HEFFTE=1)
