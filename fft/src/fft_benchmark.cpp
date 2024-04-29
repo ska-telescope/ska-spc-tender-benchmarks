@@ -1,6 +1,7 @@
 #include <cmath>
 #include <complex>
 #include <limits>
+#include <tbb/parallel_for.h>
 #include <vector>
 
 #include "fft_benchmark.h"
@@ -15,7 +16,7 @@ namespace fft_benchmark
         using real = typename fft_benchmark::float_type_helper<ftype>::real;
         const auto plan = fft_helper<htype>::create_plan(configuration, MPI_COMM_WORLD);
         const size_t plan_bytes = plan.size_comm_buffers() + plan.size_workspace() * sizeof(complex);
-        const size_t remaining_bytes = (plan_bytes > configuration.max_data_bytes) ? 0 : configuration.max_data_bytes;
+        const size_t remaining_bytes = (plan_bytes > configuration.memorysize) ? 0 : configuration.memorysize;
         const size_t bytes_per_batch = (plan.size_inbox() + plan.size_outbox()) * sizeof(complex);
         return remaining_bytes / bytes_per_batch;
     }
@@ -144,8 +145,14 @@ namespace fft_benchmark
         const auto before_compute = std::chrono::high_resolution_clock::now();
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
-            fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, configuration.ttype, in.data(),
-                                                               out.data());
+            tbb::parallel_for(tbb::blocked_range<size_t>(0, batch_size), [&](const tbb::blocked_range<size_t> &range) {
+                for (size_t i = range.begin(); i < range.end(); ++i)
+                {
+                    fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, 1, configuration.ttype,
+                                                                       in.data() + i * plan.size_inbox(),
+                                                                       out.data() + i * plan.size_outbox());
+                }
+            });
         }
         const auto after_compute = std::chrono::high_resolution_clock::now();
         const auto compute_us =

@@ -97,11 +97,18 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
         })->size();
 
     std::cout << "Benchmark results:\n";
+
     print_columns(table);
 }
 
 int main(int argc, char **argv)
 {
+    if (argc < 2)
+    {
+        std::cerr << "No configuration file provided." << std::endl;
+        exit(-1);
+    }
+
     std::vector<fft_benchmark::configuration> configurations;
     try
     {

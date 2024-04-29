@@ -39,7 +39,6 @@ namespace fft_benchmark
         size_t nx, ny;
         size_t niterations;
         size_t memorysize;
-        size_t max_data_bytes;
         bool in_place;
     };
 
