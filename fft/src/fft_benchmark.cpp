@@ -64,23 +64,25 @@ namespace fft_benchmark
     }
 
     template <typename complex>
-    void fill_signal(std::vector<complex> &signal)
+    void fill_signal(typename std::vector<complex>::iterator begin, typename std::vector<complex>::iterator end)
     {
         int k = 0;
-        for (auto &x : signal)
+        for (auto it = begin; it < end; ++it)
         {
-            x = complex(k);
+            *it = complex(k);
             k = (k + 1) % 128;
         }
     }
 
     template <typename float_t>
-    bool check_result(std::vector<std::complex<float_t>> &signal, const float_t scaling)
+    bool check_result(typename std::vector<std::complex<float_t>>::iterator begin,
+                      typename std::vector<std::complex<float_t>>::iterator end, const float_t scaling)
     {
         bool correct = true;
         int i = 0;
-        for (const auto x : signal)
+        for (auto it = begin; it < end; ++it)
         {
+            auto &x = *it;
             const std::complex<float_t> ref = i;
             i = (i + 1) % 128;
             const std::complex<float_t> scaled_x = x * scaling;
@@ -139,7 +141,7 @@ namespace fft_benchmark
 
         // Input data initialization.
         std::vector<complex> in(batch_size * plan.size_inbox());
-        fill_signal(in);
+        fill_signal<complex>(in.begin(), in.begin() + plan.size_inbox());
         std::vector<complex> out(batch_size * plan.size_outbox());
 
         const auto before_compute = std::chrono::high_resolution_clock::now();
@@ -162,7 +164,8 @@ namespace fft_benchmark
         // Reverting the FFT operation for validation purposes.
         fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, invert(configuration.ttype), out.data(),
                                                            in.data());
-        const auto status = check_result(in, real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
+        const auto status = check_result(in.begin(), in.begin() + plan.size_outbox(),
+                                         real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
                                 ? benchmark_result::status_t::correct
                                 : benchmark_result::status_t::error;
 
@@ -216,7 +219,7 @@ namespace fft_benchmark
 
         // Input data initialization.
         std::vector<complex> in(batch_size * plan.size_inbox());
-        fill_signal(in);
+        fill_signal<complex>(in.begin(), in.begin() + plan.size_inbox());
         heffte::gpu::vector<complex> gpu_input(batch_size * plan.size_inbox());
 
         // Moving input data to the device.
@@ -259,15 +262,14 @@ namespace fft_benchmark
         // Reverting the FFT operation for validation purposes.
         fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, invert(configuration.ttype), out.data(),
                                                            in.data());
-        const auto status = check_result(in, real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
+        const auto status = check_result(in.begin(), in.begin() + plan.size_outbox(),
+                                         real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
                                 ? benchmark_result::status_t::correct
                                 : benchmark_result::status_t::error;
         in = heffte::gpu::transfer::unload(gpu_input);
 
         benchmark_result result;
-        result.status = check_result(in, real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
-                            ? benchmark_result::status_t::correct
-                            : benchmark_result::status_t::error;
+        result.status = status;
         result.batch_size = batch_size;
         result.niterations = configuration.niterations;
         result.init_time = std::chrono::duration_cast<std::chrono::microseconds>(after_init - before_init).count();
