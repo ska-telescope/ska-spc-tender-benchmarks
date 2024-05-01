@@ -134,8 +134,9 @@ namespace fft_benchmark
         std::vector<complex> warmup_in(plan.size_inbox());
         std::vector<complex> warmup_out(plan.size_inbox());
         auto warmup_configuration = configuration;
+        std::vector<complex> workspace(plan.size_workspace());
         fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, 1, configuration.ttype, warmup_in.data(),
-                                                           warmup_out.data());
+                                                           warmup_out.data(), workspace.data());
         const auto after_init = std::chrono::high_resolution_clock::now();
         const auto init_us = std::chrono::duration_cast<std::chrono::microseconds>(after_init - before_init).count();
 
@@ -150,9 +151,9 @@ namespace fft_benchmark
             tbb::parallel_for(tbb::blocked_range<size_t>(0, batch_size), [&](const tbb::blocked_range<size_t> &range) {
                 for (size_t i = range.begin(); i < range.end(); ++i)
                 {
-                    fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, 1, configuration.ttype,
-                                                                       in.data() + i * plan.size_inbox(),
-                                                                       out.data() + i * plan.size_outbox());
+                    fft_benchmark::fft_helper<hardware_type::cpu>::run(
+                        plan, 1, configuration.ttype, in.data() + i * plan.size_inbox(),
+                        out.data() + i * plan.size_outbox(), workspace.data());
                 }
             });
         }
@@ -163,7 +164,7 @@ namespace fft_benchmark
 
         // Reverting the FFT operation for validation purposes.
         fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, invert(configuration.ttype), out.data(),
-                                                           in.data());
+                                                           in.data(), workspace.data());
         const auto status = check_result(in.begin(), in.begin() + plan.size_outbox(),
                                          real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
                                 ? benchmark_result::status_t::correct
@@ -207,12 +208,13 @@ namespace fft_benchmark
         // Plan creation + warmup for plan initialization.
         const auto before_init = std::chrono::high_resolution_clock::now();
         auto plan = fft_benchmark::fft_helper<hardware_type::nvidia>::create_plan(configuration, MPI_COMM_WORLD);
+        heffte::fft3d<heffte::backend::cufft>::buffer_container<complex> workspace(plan.size_workspace());
 
         {
             heffte::gpu::vector<complex> gpu_warmup_input(plan.size_inbox());
             heffte::gpu::vector<complex> gpu_warmup_output(plan.size_outbox());
             fft_benchmark::fft_helper<hardware_type::nvidia>::run(plan, 1, configuration.ttype, gpu_warmup_input.data(),
-                                                                  gpu_warmup_output.data());
+                                                                  gpu_warmup_output.data(), workspace.data());
         }
         const auto after_init = std::chrono::high_resolution_clock::now();
         const auto init_us = std::chrono::duration_cast<std::chrono::microseconds>(after_init - before_init).count();
@@ -238,8 +240,8 @@ namespace fft_benchmark
         const auto before_compute = std::chrono::high_resolution_clock::now();
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
-            fft_benchmark::fft_helper<hardware_type::nvidia>::run(plan, batch_size, configuration.ttype,
-                                                                  gpu_input.data(), gpu_output.data());
+            fft_benchmark::fft_helper<hardware_type::nvidia>::run(
+                plan, batch_size, configuration.ttype, gpu_input.data(), gpu_output.data(), workspace.data());
         }
         const auto after_compute = std::chrono::high_resolution_clock::now();
         const auto compute_us =
@@ -261,7 +263,7 @@ namespace fft_benchmark
 
         // Reverting the FFT operation for validation purposes.
         fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, invert(configuration.ttype), out.data(),
-                                                           in.data());
+                                                           in.data(), workspace.data());
         const auto status = check_result(in.begin(), in.begin() + plan.size_outbox(),
                                          real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
                                 ? benchmark_result::status_t::correct

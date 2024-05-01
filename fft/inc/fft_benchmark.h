@@ -70,15 +70,15 @@ namespace fft_benchmark
 
         template <typename plan_t, typename float_type>
         static void run(const plan_t &plan, const size_t batch_size, const transform_type ttype,
-                        const std::complex<float_type> *in, std::complex<float_type> *out)
+                        const std::complex<float_type> *in, std::complex<float_type> *out, std::complex<float_type> * workspace)
         {
             if (ttype == transform_type::forward)
             {
-                plan.forward(batch_size, in, out);
+                plan.forward(batch_size, in, out, workspace);
             }
             else
             {
-                plan.backward(batch_size, in, out);
+                plan.backward(batch_size, in, out, workspace);
             }
         }
     };
