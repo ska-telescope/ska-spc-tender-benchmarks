@@ -4,6 +4,10 @@
 #include <tbb/parallel_for.h>
 #include <vector>
 
+#ifdef VTUNE_PROFILE
+#include <ittnotify.h>
+#endif
+
 #include "fft_benchmark.h"
 #include "fft_configuration.h"
 
@@ -145,6 +149,11 @@ namespace fft_benchmark
         fill_signal<complex>(in.begin(), in.begin() + plan.size_inbox());
         std::vector<complex> out(batch_size * plan.size_outbox());
 
+#ifdef VTUNE_PROFILE
+        __itt_domain *domain = __itt_domain_create("FFT.Benchmark.MKL");
+        __itt_string_handle *handle_main = __itt_string_handle_create("run");
+        __itt_task_begin(domain, __itt_null, __itt_null, handle_main);
+#endif
         const auto before_compute = std::chrono::high_resolution_clock::now();
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
@@ -158,6 +167,9 @@ namespace fft_benchmark
             });
         }
         const auto after_compute = std::chrono::high_resolution_clock::now();
+#ifdef VTUNE_PROFILE
+        __itt_task_end(domain);
+#endif
         const auto compute_us =
             std::chrono::duration_cast<std::chrono::microseconds>(after_compute - before_compute).count();
         const auto average_compute_us = compute_us / (static_cast<double>(batch_size * configuration.niterations));
@@ -208,8 +220,8 @@ namespace fft_benchmark
         // Plan creation + warmup for plan initialization.
         const auto before_init = std::chrono::high_resolution_clock::now();
         auto plan = fft_benchmark::fft_helper<hardware_type::nvidia>::create_plan(configuration, MPI_COMM_WORLD);
-        heffte::fft3d<heffte::backend::cufft>::buffer_container<complex> workspace(plan.size_workspace());
-
+        heffte::fft3d<fft_helper<fft_benchmark::hardware_type::nvidia>::backend_tag>::buffer_container<complex>
+            workspace(plan.size_workspace());
         {
             heffte::gpu::vector<complex> gpu_warmup_input(plan.size_inbox());
             heffte::gpu::vector<complex> gpu_warmup_output(plan.size_outbox());
@@ -262,13 +274,13 @@ namespace fft_benchmark
             out_transfer_us / (static_cast<double>(batch_size * configuration.niterations));
 
         // Reverting the FFT operation for validation purposes.
-        fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, invert(configuration.ttype), out.data(),
-                                                           in.data(), workspace.data());
+        fft_benchmark::fft_helper<hardware_type::nvidia>::run(plan, batch_size, invert(configuration.ttype),
+                                                              gpu_output.data(), gpu_input.data(), workspace.data());
+        in = heffte::gpu::transfer::unload(gpu_input);
         const auto status = check_result(in.begin(), in.begin() + plan.size_outbox(),
                                          real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
                                 ? benchmark_result::status_t::correct
                                 : benchmark_result::status_t::error;
-        in = heffte::gpu::transfer::unload(gpu_input);
 
         benchmark_result result;
         result.status = status;

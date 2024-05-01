@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.23)
 
 project(fft-benchmarks LANGUAGES CXX)
 
+set(CMAKE_CXX_FLAGS "-g")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -21,12 +22,14 @@ target_link_libraries(fft-benchmarks PUBLIC yaml-cpp)
 target_link_libraries(fft-benchmarks PUBLIC MPI::MPI_CXX)
 target_link_libraries(fft-benchmarks PUBLIC TBB::tbb)
 
+option(VTUNE_PROFILE "Use Vtune annotations" ON)
+
 find_package(Heffte REQUIRED)
 target_compile_definitions(fft-benchmarks PRIVATE FFT_BENCHMARK_ENABLE_HEFFTE=1)
 target_link_libraries(fft-benchmarks PUBLIC Heffte::Heffte)
 
-if(FFT_BENCHMARK_ENABLE_PROFILING)
-  target_compile_definitions(fft-benchmarks PRIVATE FFT_BENCHMARK_ENABLE_PROFILING=1)
+if(VTUNE_PROFILE)
+  target_compile_definitions(fft-benchmarks PRIVATE VTUNE_PROFILE=1)
 
   include(FetchContent)
   FetchContent_Declare(
