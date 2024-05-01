@@ -1,10 +1,14 @@
 #include <algorithm>
 #include <array>
+#include <bit>
+#include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <iomanip>
 #include <ios>
 #include <iostream>
 #include <string>
+#include <sys/ioctl.h>
 #include <vector>
 
 #include "fft_benchmark.h"
@@ -35,28 +39,123 @@ void print_columns(const std::vector<std::array<std::string, N>> &data)
     std::cout.flush();
 }
 
+std::string bytes_to_memory_size(const size_t n)
+{
+    const std::array<std::string, 9> strs = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"};
+
+    const auto log2n = (std::bit_width(n) - 1);
+    const auto logrank = log2n / 10;
+    const auto base = 1 << (logrank * 10);
+    const auto rounded = std::round(static_cast<double>(10. * n) / static_cast<double>(base)) / 10.;
+    std::stringstream sstr;
+    sstr << rounded << " " << strs[logrank];
+    return sstr.str();
+}
+
+std::string hardware_type_string(const fft_benchmark::hardware_type htype)
+{
+    switch (htype)
+    {
+    case fft_benchmark::hardware_type::amd:
+        return "amd";
+    case fft_benchmark::hardware_type::cpu:
+        return "cpu";
+    case fft_benchmark::hardware_type::nvidia:
+        return "nvidia";
+    default:
+        return "";
+    }
+}
+
+std::string float_type_string(const fft_benchmark::float_type ftype)
+{
+    switch (ftype)
+    {
+    case fft_benchmark::float_type::single_precision:
+        return "single";
+    case fft_benchmark::float_type::double_precision:
+        return "double";
+    default:
+        return "";
+    }
+}
+
 void run(const std::vector<fft_benchmark::configuration> &configurations)
 {
+    struct winsize w;
+    ioctl(0, TIOCGWINSZ, &w);
+    const auto columns = w.ws_col;
+
+    std::cout << "##################################\n";
+    std::cout << "#### FFT benchmarking utility ####\n";
+    std::cout << "##################################\n\n";
+    std::cout << "##############################\n";
+    std::cout << "## Benchmarking configurations\n\n";
+
+    std::vector<std::array<std::string, 6>> config_table;
+    config_table.emplace_back(
+        std::array<std::string, 6>{"Configuration ID", "  Iterations", "  Dimensions", "  Max memory size", "  Precision", "  Hardware"});
+    int i_configuration = 0;
+    for (const auto configuration : configurations)
+    {
+        std::array<std::string, 6> line;
+        line[0] = std::to_string(i_configuration++);
+        line[1] = std::to_string(configuration.niterations);
+        line[2] = std::to_string(configuration.nx) + " * " + std::to_string(configuration.ny);
+        line[3] = bytes_to_memory_size(configuration.memorysize);
+        line[4] = (configuration.ftype == fft_benchmark::float_type::single_precision ? "single" : "double");
+        line[5] = hardware_type_string(configuration.htype);
+        config_table.emplace_back(line);
+    }
+    print_columns(config_table);
+    std::cout << std::endl;
+
+    std::cout << "##############\n";
+    std::cout << "## Warmup step\n\n";
+    std::cout << "Warming up…";
+
+    const auto begin_warmup = std::chrono::high_resolution_clock::now();
+    fft_benchmark::launch_benchmark(configurations.front());
+    const auto end_warmup = std::chrono::high_resolution_clock::now();
+    const auto warmup_s = std::chrono::duration_cast<std::chrono::seconds>(end_warmup - begin_warmup).count();
+
+    std::cout << " Done in " << warmup_s << " seconds.\n";
+    std::cout << "==> Total benchmark should take a bit more than "
+              << std::round(static_cast<double>(configurations.size()) * warmup_s) << " seconds." << std::endl;
+    std::cout << std::endl;
+
     std::vector<std::string> titles;
     std::vector<fft_benchmark::benchmark_result> results;
 
-    fft_benchmark::launch_benchmark(configurations.front());
-
+    std::cout << "###############\n";
+    std::cout << "## Benchmarking\n\n";
+    int i = 0;
+    const auto begin_bench = std::chrono::high_resolution_clock::now();
     for (const auto &configuration : configurations)
     {
+        std::cout << "Running configuration " << i << "… ";
+        std::cout.flush();
+
+        const auto begin = std::chrono::high_resolution_clock::now();
         results.emplace_back(fft_benchmark::launch_benchmark(configuration));
-        std::string title =
-            std::to_string(configuration.nx) + " * " + std::to_string(configuration.ny) +
-            (configuration.ftype == fft_benchmark::float_type::single_precision ? " / single" : " / double");
+        const auto end = std::chrono::high_resolution_clock::now();
+
+        const auto time_s = std::chrono::duration_cast<std::chrono::seconds>(end - begin).count();
+        std::cout << "Done in " << time_s << " seconds." << std::endl;
+
+        std::string title = std::to_string(i++);
         titles.emplace_back(title);
     }
+    const auto end_bench = std::chrono::high_resolution_clock::now();
+    const auto bench_time_s = std::chrono::duration_cast<std::chrono::seconds>(end_bench - begin_bench).count();
+    std::cout << "==> Total benchmarking time: " << bench_time_s << " seconds." << std::endl << std::endl;
 
     std::vector<std::array<std::string, 8>> table;
 
-    std::array<std::string, 8> labels{"configuration",          "result",
-                                      "number of iterations",   "batch size",
-                                      "init time (us)",         "mean input transfer time (us)",
-                                      "mean compute time (us)", "mean output transfer time (us)"};
+    std::array<std::string, 8> labels{"  Configuration ID",          "  Result",
+                                      "  Number of iterations",   "  Batch size",
+                                      "  Init time (us)",         "  Mean input transfer time (us)",
+                                      "  Mean compute time (us)", "  Mean output transfer time (us)"};
 
     const auto to_result_string = [](const double x) {
         return x < 0. ? "N/A" : std::to_string(static_cast<size_t>(x));
@@ -96,7 +195,6 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
             return a.size() < b.size();
         })->size();
 
-    std::cout << "Benchmark results:\n";
 
     print_columns(table);
 }
