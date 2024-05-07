@@ -11,6 +11,10 @@
 #include <sys/ioctl.h>
 #include <vector>
 
+#ifdef VTUNE_PROFILE
+#include <ittnotify.h>
+#endif
+
 #include "fft_benchmark.h"
 #include "fft_configuration.h"
 
@@ -82,6 +86,10 @@ std::string float_type_string(const fft_benchmark::float_type ftype)
 
 void run(const std::vector<fft_benchmark::configuration> &configurations)
 {
+#ifdef VTUNE_PROFILE
+    __itt_pause();
+#endif
+
     struct winsize w;
     ioctl(0, TIOCGWINSZ, &w);
     const auto columns = w.ws_col;

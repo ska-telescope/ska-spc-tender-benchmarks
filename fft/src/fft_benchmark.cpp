@@ -150,6 +150,7 @@ namespace fft_benchmark
         std::vector<complex> out(batch_size * plan.size_outbox());
 
 #ifdef VTUNE_PROFILE
+        __itt_resume();
         __itt_domain *domain = __itt_domain_create("FFT.Benchmark.MKL");
         __itt_string_handle *handle_main = __itt_string_handle_create("run");
         __itt_task_begin(domain, __itt_null, __itt_null, handle_main);
@@ -169,6 +170,7 @@ namespace fft_benchmark
         const auto after_compute = std::chrono::high_resolution_clock::now();
 #ifdef VTUNE_PROFILE
         __itt_task_end(domain);
+        __itt_pause();
 #endif
         const auto compute_us =
             std::chrono::duration_cast<std::chrono::microseconds>(after_compute - before_compute).count();
@@ -255,6 +257,7 @@ namespace fft_benchmark
             fft_benchmark::fft_helper<hardware_type::nvidia>::run(
                 plan, batch_size, configuration.ttype, gpu_input.data(), gpu_output.data(), workspace.data());
         }
+        heffte::gpu::synchronize_default_stream();
         const auto after_compute = std::chrono::high_resolution_clock::now();
         const auto compute_us =
             std::chrono::duration_cast<std::chrono::microseconds>(after_compute - before_compute).count();
