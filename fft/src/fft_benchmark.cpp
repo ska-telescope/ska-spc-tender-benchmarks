@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cmath>
 #include <complex>
 #include <limits>
@@ -142,7 +143,8 @@ namespace fft_benchmark
         fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, 1, configuration.ttype, warmup_in.data(),
                                                            warmup_out.data(), workspace.data());
         const auto after_init = std::chrono::high_resolution_clock::now();
-        const auto init_us = std::chrono::duration_cast<std::chrono::microseconds>(after_init - before_init).count();
+        const auto init_us =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(after_init - before_init).count() / 1000.;
 
         // Input data initialization.
         std::vector<complex> in(batch_size * plan.size_inbox());
@@ -173,7 +175,7 @@ namespace fft_benchmark
         __itt_pause();
 #endif
         const auto compute_us =
-            std::chrono::duration_cast<std::chrono::microseconds>(after_compute - before_compute).count();
+            std::chrono::duration_cast<std::chrono::nanoseconds>(after_compute - before_compute).count() / 1000.;
         const auto average_compute_us = compute_us / (static_cast<double>(batch_size * configuration.niterations));
 
         // Reverting the FFT operation for validation purposes.
@@ -231,7 +233,8 @@ namespace fft_benchmark
                                                                   gpu_warmup_output.data(), workspace.data());
         }
         const auto after_init = std::chrono::high_resolution_clock::now();
-        const auto init_us = std::chrono::duration_cast<std::chrono::microseconds>(after_init - before_init).count();
+        const auto init_us =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(after_init - before_init).count() / 1000.;
 
         // Input data initialization.
         std::vector<complex> in(batch_size * plan.size_inbox());
@@ -246,7 +249,7 @@ namespace fft_benchmark
         }
         const auto after_in_transfer = std::chrono::high_resolution_clock::now();
         const auto in_transfer_us =
-            std::chrono::duration_cast<std::chrono::microseconds>(after_in_transfer - before_in_transfer).count();
+            std::chrono::duration_cast<std::chrono::nanoseconds>(after_in_transfer - before_in_transfer).count() / 1000;
         const auto average_in_transfer_us =
             in_transfer_us / (static_cast<double>(batch_size * configuration.niterations));
 
@@ -260,7 +263,7 @@ namespace fft_benchmark
         heffte::gpu::synchronize_default_stream();
         const auto after_compute = std::chrono::high_resolution_clock::now();
         const auto compute_us =
-            std::chrono::duration_cast<std::chrono::microseconds>(after_compute - before_compute).count();
+            std::chrono::duration_cast<std::chrono::nanoseconds>(after_compute - before_compute).count() / 1000.;
         const auto average_compute_us = compute_us / (static_cast<double>(batch_size * configuration.niterations));
 
         std::vector<complex> out(batch_size * plan.size_outbox());
@@ -272,7 +275,8 @@ namespace fft_benchmark
         }
         const auto after_out_transfer = std::chrono::high_resolution_clock::now();
         const auto out_transfer_us =
-            std::chrono::duration_cast<std::chrono::microseconds>(after_out_transfer - before_out_transfer).count();
+            std::chrono::duration_cast<std::chrono::nanoseconds>(after_out_transfer - before_out_transfer).count() /
+            1000.;
         const auto average_out_transfer_us =
             out_transfer_us / (static_cast<double>(batch_size * configuration.niterations));
 

@@ -43,11 +43,19 @@ void print_columns(const std::vector<std::array<std::string, N>> &data)
     std::cout.flush();
 }
 
+size_t log2_size_t(size_t index)
+{
+    size_t targetlevel;
+    while (index >>= 1)
+        ++targetlevel;
+    return targetlevel;
+}
+
 std::string bytes_to_memory_size(const size_t n)
 {
     const std::array<std::string, 9> strs = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"};
 
-    const auto log2n = (std::bit_width(n) - 1);
+    const auto log2n = (log2_size_t(n) - 1);
     const auto logrank = log2n / 10;
     const auto base = 1 << (logrank * 10);
     const auto rounded = std::round(static_cast<double>(10. * n) / static_cast<double>(base)) / 10.;
@@ -166,7 +174,7 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
                                       "  Mean compute time (us)", "  Mean output transfer time (us)"};
 
     const auto to_result_string = [](const double x) {
-        return x < 0. ? "N/A" : std::to_string(static_cast<size_t>(x));
+        return x < 0. ? "N/A" : std::to_string(x);
     };
 
     const auto to_correctness_string = [](const fft_benchmark::benchmark_result::status_t status) {
