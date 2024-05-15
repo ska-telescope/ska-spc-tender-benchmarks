@@ -1,5 +1,7 @@
 #pragma once
+#include <array>
 #include <complex>
+#include <cstddef>
 #include <heffte.h>
 
 #include "fft_configuration.h"
@@ -52,9 +54,9 @@ namespace fft_benchmark
         static auto create_plan(const configuration &configuration, MPI_Comm comm)
         {
             heffte::box3d<> in_indexes(
-                {0, 0, 0}, {static_cast<int>(configuration.nx - 1), static_cast<int>(configuration.ny - 1), 1});
+                std::array<int, 2>({0, 0 }), std::array<int, 2>({static_cast<int>(configuration.nx - 1), static_cast<int>(configuration.ny - 1)}));
             heffte::box3d<> out_indexes(
-                {0, 0, 0}, {static_cast<int>(configuration.nx - 1), static_cast<int>(configuration.ny - 1), 1});
+                std::array<int, 2>({0, 0 }), std::array<int, 2>({static_cast<int>(configuration.nx - 1), static_cast<int>(configuration.ny - 1)}));
 
             std::array<int, 3> proc_grid = heffte::proc_setup_min_surface(in_indexes, 1);
 
