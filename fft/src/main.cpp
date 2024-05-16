@@ -109,8 +109,8 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
     std::cout << "## Benchmarking configurations\n\n";
 
     std::vector<std::array<std::string, 6>> config_table;
-    config_table.emplace_back(
-        std::array<std::string, 6>{"Configuration ID", "  Iterations", "  Dimensions", "  Max memory size", "  Precision", "  Hardware"});
+    config_table.emplace_back(std::array<std::string, 6>{"Configuration ID", "  Iterations", "  Dimensions",
+                                                         "  Max memory size", "  Precision", "  Hardware"});
     int i_configuration = 0;
     for (const auto configuration : configurations)
     {
@@ -166,26 +166,27 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
     const auto bench_time_s = std::chrono::duration_cast<std::chrono::seconds>(end_bench - begin_bench).count();
     std::cout << "==> Total benchmarking time: " << bench_time_s << " seconds." << std::endl << std::endl;
 
-    std::vector<std::array<std::string, 8>> table;
+    std::vector<std::array<std::string, 9>> table;
 
-    std::array<std::string, 8> labels{"  Configuration ID",          "  Result",
-                                      "  Number of iterations",   "  Batch size",
-                                      "  Init time (us)",         "  Mean input transfer time (us)",
-                                      "  Mean compute time (us)", "  Mean output transfer time (us)"};
+    std::array<std::string, 9> labels{"  Configuration ID",
+                                      "  Status",
+                                      "  Max error",
+                                      "  Number of iterations",
+                                      "  Batch size",
+                                      "  Init time (us)",
+                                      "  Mean input transfer time (us)",
+                                      "  Mean compute time (us)",
+                                      "  Mean output transfer time (us)"};
 
-    const auto to_result_string = [](const double x) {
-        return x < 0. ? "N/A" : std::to_string(x);
-    };
+    const auto to_result_string = [](const double x) { return x < 0. ? "N/A" : std::to_string(x); };
 
     const auto to_correctness_string = [](const fft_benchmark::benchmark_result::status_t status) {
         switch (status)
         {
-        case fft_benchmark::benchmark_result::status_t::correct:
+        case fft_benchmark::benchmark_result::status_t::sucess:
             return std::string{"OK"};
-        case fft_benchmark::benchmark_result::status_t::error:
+        case fft_benchmark::benchmark_result::status_t::failure:
             return std::string{"ERROR"};
-        case fft_benchmark::benchmark_result::status_t::failed:
-            return std::string{"FAILED"};
         }
         return std::string{};
     };
@@ -195,8 +196,9 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
     {
         const auto &result = results[i];
         const auto &title = titles[i];
-        std::array<std::string, 8> row{title,
+        std::array<std::string, 9> row{title,
                                        to_correctness_string(result.status),
+                                       std::to_string(result.max_error),
                                        std::to_string(result.niterations),
                                        std::to_string(result.batch_size),
                                        to_result_string(result.init_time),
@@ -210,7 +212,6 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
         std::max_element(titles.cbegin(), titles.cend(), [](const std::string &a, const std::string &b) {
             return a.size() < b.size();
         })->size();
-
 
     print_columns(table);
 }

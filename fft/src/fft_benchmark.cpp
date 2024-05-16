@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <complex>
@@ -80,11 +81,11 @@ namespace fft_benchmark
     }
 
     template <typename float_t>
-    bool check_result(typename std::vector<std::complex<float_t>>::iterator begin,
-                      typename std::vector<std::complex<float_t>>::iterator end, const float_t scaling)
+    float_t check_result(typename std::vector<std::complex<float_t>>::iterator begin,
+                         typename std::vector<std::complex<float_t>>::iterator end, const float_t scaling)
     {
-        bool correct = true;
         int i = 0;
+        float_t max_error = 0;
         for (auto it = begin; it < end; ++it)
         {
             auto &x = *it;
@@ -92,14 +93,9 @@ namespace fft_benchmark
             i = (i + 1) % 128;
             const std::complex<float_t> scaled_x = x * scaling;
             const auto err = std::abs(ref - scaled_x);
-            const auto threshold = std::numeric_limits<float_t>::epsilon() * 256;
-            correct = correct and err < threshold;
-            if (!correct)
-            {
-                break;
-            }
+            max_error = std::max(err, max_error);
         }
-        return correct;
+        return max_error;
     }
 
     template <fft_benchmark::hardware_type htype>
@@ -181,18 +177,18 @@ namespace fft_benchmark
         // Reverting the FFT operation for validation purposes.
         fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, invert(configuration.ttype), out.data(),
                                                            in.data(), workspace.data());
-        const auto status = check_result(in.begin(), in.begin() + plan.size_outbox(),
-                                         real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
-                                ? benchmark_result::status_t::correct
-                                : benchmark_result::status_t::error;
+
+        const auto max_error =
+            check_result(in.begin(), in.begin() + plan.size_inbox(), real(1) / static_cast<real>(configuration.nx * configuration.ny));
 
         // No data for transfer times.
         benchmark_result result;
-        result.status = status;
+        result.status = benchmark_result::status_t::sucess;
         result.niterations = configuration.niterations;
         result.batch_size = batch_size;
         result.init_time = init_us;
         result.compute_time = average_compute_us;
+        result.max_error = max_error;
 
         return result;
     }
@@ -284,19 +280,17 @@ namespace fft_benchmark
         fft_benchmark::fft_helper<hardware_type::nvidia>::run(plan, batch_size, invert(configuration.ttype),
                                                               gpu_output.data(), gpu_input.data(), workspace.data());
         in = heffte::gpu::transfer::unload(gpu_input);
-        const auto status = check_result(in.begin(), in.begin() + plan.size_outbox(),
-                                         real(1) / static_cast<real>(configuration.nx * configuration.ny * 2))
-                                ? benchmark_result::status_t::correct
-                                : benchmark_result::status_t::error;
+        const auto max_error = check_result(in.begin(), in.begin() + plan.size_outbox(),
+                                            real(1) / static_cast<real>(configuration.nx * configuration.ny));
 
         benchmark_result result;
-        result.status = status;
         result.batch_size = batch_size;
         result.niterations = configuration.niterations;
         result.init_time = std::chrono::duration_cast<std::chrono::microseconds>(after_init - before_init).count();
         result.compute_time = average_compute_us;
         result.in_transfer_time = average_in_transfer_us;
         result.out_transfer_time = average_out_transfer_us;
+        result.max_error = max_error;
 
         return result;
     }
