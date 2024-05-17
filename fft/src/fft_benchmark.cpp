@@ -248,6 +248,7 @@ namespace fft_benchmark
             std::chrono::duration_cast<std::chrono::nanoseconds>(after_in_transfer - before_in_transfer).count() / 1000;
         const auto average_in_transfer_us =
             in_transfer_us / (static_cast<double>(batch_size * configuration.niterations));
+        const auto in_bandwith_mibps = static_cast<double>(configuration.niterations * in.size() * sizeof(in[0])) / static_cast<double>(in_transfer_us);
 
         heffte::gpu::vector<complex> gpu_output(batch_size * plan.size_outbox());
         const auto before_compute = std::chrono::high_resolution_clock::now();
@@ -275,6 +276,7 @@ namespace fft_benchmark
             1000.;
         const auto average_out_transfer_us =
             out_transfer_us / (static_cast<double>(batch_size * configuration.niterations));
+        const auto out_bandwith_mibps = static_cast<double>(configuration.niterations * out.size() * sizeof(out[0])) / static_cast<double>(out_transfer_us);
 
         // Reverting the FFT operation for validation purposes.
         fft_benchmark::fft_helper<hardware_type::nvidia>::run(plan, batch_size, invert(configuration.ttype),
@@ -284,6 +286,7 @@ namespace fft_benchmark
                                             real(1) / static_cast<real>(configuration.nx * configuration.ny));
 
         benchmark_result result;
+        result.status = benchmark_result::status_t::sucess;
         result.batch_size = batch_size;
         result.niterations = configuration.niterations;
         result.init_time = std::chrono::duration_cast<std::chrono::microseconds>(after_init - before_init).count();
@@ -291,6 +294,8 @@ namespace fft_benchmark
         result.in_transfer_time = average_in_transfer_us;
         result.out_transfer_time = average_out_transfer_us;
         result.max_error = max_error;
+        result.in_bandwidth = in_bandwith_mibps;
+        result.out_bandwidth = out_bandwith_mibps;
 
         return result;
     }

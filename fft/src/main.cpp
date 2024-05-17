@@ -4,9 +4,11 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <fstream>
 #include <iomanip>
 #include <ios>
 #include <iostream>
+#include <filesystem>
 #include <string>
 #include <sys/ioctl.h>
 #include <vector>
@@ -39,6 +41,22 @@ void print_columns(const std::vector<std::array<std::string, N>> &data)
             std::cout << " ";
         }
         std::cout << "\n";
+    }
+    std::cout.flush();
+}
+
+template <size_t N>
+void write_csv(const std::filesystem::path & path, const std::vector<std::array<std::string, N>> &data)
+{
+    std::ofstream file(path.filename());
+    for (const auto &row : data)
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            file << row[i];
+            file << ";";
+        }
+        file << "\n";
     }
     std::cout.flush();
 }
@@ -92,7 +110,7 @@ std::string float_type_string(const fft_benchmark::float_type ftype)
     }
 }
 
-void run(const std::vector<fft_benchmark::configuration> &configurations)
+void run(const std::vector<fft_benchmark::configuration> &configurations, const std::filesystem::path & output)
 {
 #ifdef VTUNE_PROFILE
     __itt_pause();
@@ -166,17 +184,22 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
     const auto bench_time_s = std::chrono::duration_cast<std::chrono::seconds>(end_bench - begin_bench).count();
     std::cout << "==> Total benchmarking time: " << bench_time_s << " seconds." << std::endl << std::endl;
 
-    std::vector<std::array<std::string, 9>> table;
+    std::vector<std::array<std::string, 12>> table;
 
-    std::array<std::string, 9> labels{"  Configuration ID",
-                                      "  Status",
-                                      "  Max error",
-                                      "  Number of iterations",
-                                      "  Batch size",
-                                      "  Init time (us)",
-                                      "  Mean input transfer time (us)",
-                                      "  Mean compute time (us)",
-                                      "  Mean output transfer time (us)"};
+    std::array<std::string, 12> labels{
+        "  Configuration ID",
+        "  Dimensions",
+        "  Status",
+        "  Max error",
+        "  Number of iterations",
+        "  Batch size",
+        "  Init time (us)",
+        "  Mean input transfer time (us)",
+        "  Achieved input bandwidth (MiB/s)",
+        "  Mean compute time (us)",
+        "  Mean output transfer time (us)",
+        "  Achieved output bandwidth (MiB/s)",
+    };
 
     const auto to_result_string = [](const double x) { return x < 0. ? "N/A" : std::to_string(x); };
 
@@ -196,15 +219,18 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
     {
         const auto &result = results[i];
         const auto &title = titles[i];
-        std::array<std::string, 9> row{title,
-                                       to_correctness_string(result.status),
-                                       std::to_string(result.max_error),
-                                       std::to_string(result.niterations),
-                                       std::to_string(result.batch_size),
-                                       to_result_string(result.init_time),
-                                       to_result_string(result.in_transfer_time),
-                                       to_result_string(result.compute_time),
-                                       to_result_string(result.out_transfer_time)};
+        std::array<std::string, 12> row{title,
+                                        std::to_string(configurations[i].nx) + " * " + std::to_string(configurations[i].ny),
+                                        to_correctness_string(result.status),
+                                        std::to_string(result.max_error),
+                                        std::to_string(result.niterations),
+                                        std::to_string(result.batch_size),
+                                        to_result_string(result.init_time),
+                                        to_result_string(result.in_transfer_time),
+                                        to_result_string(result.in_bandwidth),
+                                        to_result_string(result.compute_time),
+                                        to_result_string(result.out_transfer_time),
+                                        to_result_string(result.out_bandwidth)};
         table.emplace_back(row);
     }
 
@@ -214,15 +240,19 @@ void run(const std::vector<fft_benchmark::configuration> &configurations)
         })->size();
 
     print_columns(table);
+    write_csv(output, table);
 }
 
 int main(int argc, char **argv)
 {
-    if (argc < 2)
+    if (argc < 3)
     {
-        std::cerr << "No configuration file provided." << std::endl;
+        std::cerr << "fft-benchmarks <configuration file> <output file>" << std::endl;
         exit(-1);
     }
+
+    const std::filesystem::path configuration_path = argv[1];
+    const std::filesystem::path output_path = argv[2];
 
     std::vector<fft_benchmark::configuration> configurations;
     try
@@ -237,6 +267,6 @@ int main(int argc, char **argv)
     }
 
     MPI_Init(&argc, &argv);
-    run(configurations);
+    run(configurations, argv[2]);
     MPI_Finalize();
 }
