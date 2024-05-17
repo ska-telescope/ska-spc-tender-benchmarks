@@ -4,11 +4,11 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <ios>
 #include <iostream>
-#include <filesystem>
 #include <string>
 #include <sys/ioctl.h>
 #include <vector>
@@ -46,7 +46,7 @@ void print_columns(const std::vector<std::array<std::string, N>> &data)
 }
 
 template <size_t N>
-void write_csv(const std::filesystem::path & path, const std::vector<std::array<std::string, N>> &data)
+void write_csv(const std::filesystem::path &path, const std::vector<std::array<std::string, N>> &data)
 {
     std::ofstream file(path.filename());
     for (const auto &row : data)
@@ -63,7 +63,7 @@ void write_csv(const std::filesystem::path & path, const std::vector<std::array<
 
 size_t log2_size_t(size_t index)
 {
-    size_t targetlevel;
+    size_t targetlevel = 0;
     while (index >>= 1)
         ++targetlevel;
     return targetlevel;
@@ -78,7 +78,7 @@ std::string bytes_to_memory_size(const size_t n)
     const auto base = 1 << (logrank * 10);
     const auto rounded = std::round(static_cast<double>(10. * n) / static_cast<double>(base)) / 10.;
     std::stringstream sstr;
-    sstr << rounded << " " << strs[logrank];
+    sstr << rounded << " " << strs[std::min(logrank, size_t(8))];
     return sstr.str();
 }
 
@@ -86,11 +86,9 @@ std::string hardware_type_string(const fft_benchmark::hardware_type htype)
 {
     switch (htype)
     {
-    case fft_benchmark::hardware_type::amd:
-        return "amd";
     case fft_benchmark::hardware_type::cpu:
         return "cpu";
-    case fft_benchmark::hardware_type::nvidia:
+    case fft_benchmark::hardware_type::gpu:
         return "nvidia";
     default:
         return "";
@@ -110,7 +108,7 @@ std::string float_type_string(const fft_benchmark::float_type ftype)
     }
 }
 
-void run(const std::vector<fft_benchmark::configuration> &configurations, const std::filesystem::path & output)
+void run(const std::vector<fft_benchmark::configuration> &configurations, const std::filesystem::path &output)
 {
 #ifdef VTUNE_PROFILE
     __itt_pause();
@@ -220,9 +218,10 @@ void run(const std::vector<fft_benchmark::configuration> &configurations, const 
         const auto &result = results[i];
         const auto &title = titles[i];
         std::array<std::string, 12> row{title,
-                                        std::to_string(configurations[i].nx) + " * " + std::to_string(configurations[i].ny),
+                                        std::to_string(configurations[i].nx) + " * " +
+                                            std::to_string(configurations[i].ny),
                                         to_correctness_string(result.status),
-                                        std::to_string(result.max_error),
+                                        to_result_string(result.max_error),
                                         std::to_string(result.niterations),
                                         std::to_string(result.batch_size),
                                         to_result_string(result.init_time),

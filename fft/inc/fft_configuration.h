@@ -25,10 +25,13 @@ namespace fft_benchmark
 
     enum class hardware_type
     {
+#ifdef ENABLE_CPU
         cpu,
-        nvidia,
-        amd,
-        heffte
+#endif
+#ifdef ENABLE_GPU
+        gpu,
+#endif
+        err
     };
 
     struct configuration

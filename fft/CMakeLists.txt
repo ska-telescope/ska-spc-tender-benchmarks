@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.23)
 
 project(fft-benchmarks LANGUAGES CXX)
 
-set(CMAKE_CXX_FLAGS "-g")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -23,6 +22,16 @@ target_link_libraries(fft-benchmarks PUBLIC MPI::MPI_CXX)
 target_link_libraries(fft-benchmarks PUBLIC TBB::tbb)
 
 option(VTUNE_PROFILE "Use Vtune annotations" ON)
+option(ENABLE_CPU "Enable CPU benchmarks." ON)
+option(ENABLE_GPU "Enable GPU benchmarks." ON)
+
+if(${ENABLE_CPU})
+  target_compile_definitions(fft-benchmarks PUBLIC ENABLE_CPU)
+endif()
+
+if(${ENABLE_GPU})
+  target_compile_definitions(fft-benchmarks PUBLIC ENABLE_GPU)
+endif()
 
 find_package(Heffte REQUIRED)
 target_compile_definitions(fft-benchmarks PRIVATE FFT_BENCHMARK_ENABLE_HEFFTE=1)

@@ -33,6 +33,7 @@ namespace fft_benchmark
         {
             switch (configuration.htype)
             {
+#ifdef ENABLE_CPU
             case fft_benchmark::hardware_type::cpu: {
                 if (fft_benchmark::float_type::single_precision == configuration.ftype)
                 {
@@ -44,19 +45,22 @@ namespace fft_benchmark
                 }
                 break;
             }
-            case fft_benchmark::hardware_type::nvidia: {
+#endif
+#ifdef ENABLE_GPU
+            case fft_benchmark::hardware_type::gpu: {
                 if (fft_benchmark::float_type::single_precision == configuration.ftype)
                 {
-                    return batch_size_compute_helper<hardware_type::nvidia, float_type::single_precision>(
+                    return batch_size_compute_helper<hardware_type::gpu, float_type::single_precision>(
                         configuration);
                 }
                 else if (fft_benchmark::float_type::double_precision == configuration.ftype)
                 {
-                    return batch_size_compute_helper<hardware_type::nvidia, float_type::single_precision>(
+                    return batch_size_compute_helper<hardware_type::gpu, float_type::single_precision>(
                         configuration);
                 }
                 break;
             }
+#endif
             default:
                 return 0;
             }
@@ -105,6 +109,7 @@ namespace fft_benchmark
         static benchmark_result launch(const fft_benchmark::configuration &configuration);
     };
 
+#ifdef ENABLE_CPU
     template <>
     template <fft_benchmark::float_type ftype>
     benchmark_result benchmark_launcher<fft_benchmark::hardware_type::cpu>::launch(
@@ -192,10 +197,12 @@ namespace fft_benchmark
 
         return result;
     }
+#endif
 
+#ifdef ENABLE_GPU
     template <>
     template <fft_benchmark::float_type ftype>
-    benchmark_result benchmark_launcher<fft_benchmark::hardware_type::nvidia>::launch(
+    benchmark_result benchmark_launcher<fft_benchmark::hardware_type::gpu>::launch(
         const fft_benchmark::configuration &configuration)
     {
         using complex = typename fft_benchmark::float_type_helper<ftype>::complex;
@@ -219,13 +226,13 @@ namespace fft_benchmark
 
         // Plan creation + warmup for plan initialization.
         const auto before_init = std::chrono::high_resolution_clock::now();
-        auto plan = fft_benchmark::fft_helper<hardware_type::nvidia>::create_plan(configuration, MPI_COMM_WORLD);
-        heffte::fft3d<fft_helper<fft_benchmark::hardware_type::nvidia>::backend_tag>::buffer_container<complex>
+        auto plan = fft_benchmark::fft_helper<hardware_type::gpu>::create_plan(configuration, MPI_COMM_WORLD);
+        heffte::fft3d<fft_helper<fft_benchmark::hardware_type::gpu>::backend_tag>::buffer_container<complex>
             workspace(plan.size_workspace());
         {
             heffte::gpu::vector<complex> gpu_warmup_input(plan.size_inbox());
             heffte::gpu::vector<complex> gpu_warmup_output(plan.size_outbox());
-            fft_benchmark::fft_helper<hardware_type::nvidia>::run(plan, 1, configuration.ttype, gpu_warmup_input.data(),
+            fft_benchmark::fft_helper<hardware_type::gpu>::run(plan, 1, configuration.ttype, gpu_warmup_input.data(),
                                                                   gpu_warmup_output.data(), workspace.data());
         }
         const auto after_init = std::chrono::high_resolution_clock::now();
@@ -254,7 +261,7 @@ namespace fft_benchmark
         const auto before_compute = std::chrono::high_resolution_clock::now();
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
-            fft_benchmark::fft_helper<hardware_type::nvidia>::run(
+            fft_benchmark::fft_helper<hardware_type::gpu>::run(
                 plan, batch_size, configuration.ttype, gpu_input.data(), gpu_output.data(), workspace.data());
         }
         heffte::gpu::synchronize_default_stream();
@@ -279,7 +286,7 @@ namespace fft_benchmark
         const auto out_bandwith_mibps = static_cast<double>(configuration.niterations * out.size() * sizeof(out[0])) / static_cast<double>(out_transfer_us);
 
         // Reverting the FFT operation for validation purposes.
-        fft_benchmark::fft_helper<hardware_type::nvidia>::run(plan, batch_size, invert(configuration.ttype),
+        fft_benchmark::fft_helper<hardware_type::gpu>::run(plan, batch_size, invert(configuration.ttype),
                                                               gpu_output.data(), gpu_input.data(), workspace.data());
         in = heffte::gpu::transfer::unload(gpu_input);
         const auto max_error = check_result(in.begin(), in.begin() + plan.size_outbox(),
@@ -299,12 +306,14 @@ namespace fft_benchmark
 
         return result;
     }
+#endif
 
     benchmark_result launch_benchmark(const fft_benchmark::configuration &configuration)
     {
         using namespace fft_benchmark;
         switch (configuration.htype)
         {
+#ifdef ENABLE_CPU
         case fft_benchmark::hardware_type::cpu:
             if (configuration.ftype == float_type::single_precision)
             {
@@ -315,16 +324,19 @@ namespace fft_benchmark
                 return benchmark_launcher<hardware_type::cpu>::launch<float_type::double_precision>(configuration);
             }
             break;
-        case fft_benchmark::hardware_type::nvidia:
+#endif
+#ifdef ENABLE_GPU
+        case fft_benchmark::hardware_type::gpu:
             if (configuration.ftype == float_type::single_precision)
             {
-                return benchmark_launcher<hardware_type::nvidia>::launch<float_type::single_precision>(configuration);
+                return benchmark_launcher<hardware_type::gpu>::launch<float_type::single_precision>(configuration);
             }
             else
             {
-                return benchmark_launcher<hardware_type::nvidia>::launch<float_type::double_precision>(configuration);
+                return benchmark_launcher<hardware_type::gpu>::launch<float_type::double_precision>(configuration);
             }
             break;
+#endif
         default:
             return {};
         }

@@ -29,23 +29,21 @@ namespace fft_benchmark
     template <hardware_type htype>
     struct hardware_type_helper;
 
+#ifdef ENABLE_CPU
     template <>
     struct hardware_type_helper<hardware_type::cpu>
     {
-        using target_tag = heffte::backend::mkl;
+        using target_tag = heffte::backend::default_backend<heffte::tag::cpu>::type;
     };
+#endif
 
+#ifdef ENABLE_GPU
     template <>
-    struct hardware_type_helper<hardware_type::nvidia>
+    struct hardware_type_helper<hardware_type::gpu>
     {
-        using target_tag = heffte::backend::cufft;
+        using target_tag = heffte::backend::default_backend<heffte::tag::gpu>::type;
     };
-
-    template <>
-    struct hardware_type_helper<hardware_type::amd>
-    {
-        using target_tag = heffte::backend::rocfft;
-    };
+#endif
 
     template <hardware_type htype>
     struct fft_helper
@@ -54,10 +52,12 @@ namespace fft_benchmark
 
         static auto create_plan(const configuration &configuration, MPI_Comm comm)
         {
-            heffte::box3d<> in_indexes(
-                std::array<int, 3>({0, 0, 0 }), std::array<int, 3>({static_cast<int>(configuration.nx - 1), static_cast<int>(configuration.ny - 1), 0}));
-            heffte::box3d<> out_indexes(
-                std::array<int, 3>({0, 0, 0 }), std::array<int, 3>({static_cast<int>(configuration.nx - 1), static_cast<int>(configuration.ny - 1), 0}));
+            heffte::box3d<> in_indexes(std::array<int, 3>({0, 0, 0}),
+                                       std::array<int, 3>({static_cast<int>(configuration.nx - 1),
+                                                           static_cast<int>(configuration.ny - 1), 0}));
+            heffte::box3d<> out_indexes(std::array<int, 3>({0, 0, 0}),
+                                        std::array<int, 3>({static_cast<int>(configuration.nx - 1),
+                                                            static_cast<int>(configuration.ny - 1), 0}));
 
             std::array<int, 3> proc_grid = heffte::proc_setup_min_surface(in_indexes, 1);
 
@@ -73,7 +73,8 @@ namespace fft_benchmark
 
         template <typename plan_t, typename float_type>
         static void run(const plan_t &plan, const size_t batch_size, const transform_type ttype,
-                        const std::complex<float_type> *in, std::complex<float_type> *out, std::complex<float_type> * workspace)
+                        const std::complex<float_type> *in, std::complex<float_type> *out,
+                        std::complex<float_type> *workspace)
         {
             if (ttype == transform_type::forward)
             {
@@ -98,9 +99,11 @@ namespace fft_benchmark
         size_t niterations = 0;
         double init_time{-1.};
         double in_transfer_time{-1.};
+        double in_bandwidth{-1};
+        double out_bandwidth{-1.};
         double compute_time{-1.};
         double out_transfer_time{-1.};
-        double max_error{std::numeric_limits<double>::max()};
+        double max_error{-1.};
 
         static benchmark_result invalid_result()
         {

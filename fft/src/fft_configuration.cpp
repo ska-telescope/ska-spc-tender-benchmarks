@@ -106,28 +106,23 @@ namespace fft_benchmark
         for (const auto &hardware_type_config : hardware_types_config)
         {
             const auto hardware_type_string = hardware_type_config.as<std::string>();
+#ifdef ENABLE_CPU
             if (hardware_type_string == "cpu")
             {
                 hardware_types.push_back(fft_benchmark::hardware_type::cpu);
+                break;
             }
-            else if (hardware_type_string == "nvidia")
+#endif
+#ifdef ENABLE_GPU
+            if (hardware_type_string == "gpu")
             {
-                hardware_types.push_back(fft_benchmark::hardware_type::nvidia);
+                hardware_types.push_back(fft_benchmark::hardware_type::gpu);
+                break;
             }
-            else if (hardware_type_string == "amd")
-            {
-                hardware_types.push_back(fft_benchmark::hardware_type::amd);
-            }
-            else if (hardware_type_string == "heffte")
-            {
-                hardware_types.push_back(fft_benchmark::hardware_type::heffte);
-            }
-            else
-            {
-                std::cerr << "Invalid hardware_type token " << hardware_type_string
-                          << " was found. Must be either cpu, nvidia, amd or heffte." << std::endl;
-                exit(-1);
-            }
+#endif
+            std::cerr << "Invalid hardware_type token " << hardware_type_string
+                      << " was found. Must be either cpu, nvidia, amd or heffte." << std::endl;
+            exit(-1);
         }
 
         if (!yaml_config["niterations"])
