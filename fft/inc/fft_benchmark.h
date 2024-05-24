@@ -3,7 +3,6 @@
 #include <complex>
 #include <cstddef>
 #include <heffte.h>
-#include <limits>
 
 #include "fft_configuration.h"
 
@@ -86,6 +85,7 @@ namespace fft_benchmark
             }
         }
     };
+
     struct benchmark_result
     {
         enum class status_t

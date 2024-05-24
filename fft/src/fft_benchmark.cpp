@@ -2,12 +2,14 @@
 #include <chrono>
 #include <cmath>
 #include <complex>
-#include <limits>
-#include <tbb/parallel_for.h>
+#include <cstddef>
 #include <vector>
 
 #ifdef VTUNE_PROFILE
 #include <ittnotify.h>
+#endif
+#ifdef ENABLE_TBB
+#include <tbb/parallel_for.h>
 #endif
 
 #include "fft_benchmark.h"
@@ -21,11 +23,13 @@ namespace fft_benchmark
         using complex = typename fft_benchmark::float_type_helper<ftype>::complex;
         using real = typename fft_benchmark::float_type_helper<ftype>::real;
         const auto plan = fft_helper<htype>::create_plan(configuration, MPI_COMM_WORLD);
-        const size_t plan_bytes = plan.size_comm_buffers() + plan.size_workspace() * sizeof(complex);
-        const size_t remaining_bytes = (plan_bytes > configuration.memorysize) ? 0 : configuration.memorysize;
-        const size_t bytes_per_batch = (plan.size_inbox() + plan.size_outbox()) * sizeof(complex);
+        const size_t plan_bytes = plan.size_comm_buffers();
+        const size_t remaining_bytes = (plan_bytes > configuration.memorysize) ? 0 : configuration.memorysize - plan_bytes;
+        const size_t bytes_per_batch =
+            (plan.size_inbox() + plan.size_outbox() + plan.size_workspace()) * sizeof(complex);
         return remaining_bytes / bytes_per_batch;
     }
+
 
     size_t compute_batch_size(const fft_benchmark::configuration &configuration)
     {
@@ -50,13 +54,11 @@ namespace fft_benchmark
             case fft_benchmark::hardware_type::gpu: {
                 if (fft_benchmark::float_type::single_precision == configuration.ftype)
                 {
-                    return batch_size_compute_helper<hardware_type::gpu, float_type::single_precision>(
-                        configuration);
+                    return batch_size_compute_helper<hardware_type::gpu, float_type::single_precision>(configuration);
                 }
                 else if (fft_benchmark::float_type::double_precision == configuration.ftype)
                 {
-                    return batch_size_compute_helper<hardware_type::gpu, float_type::single_precision>(
-                        configuration);
+                    return batch_size_compute_helper<hardware_type::gpu, float_type::single_precision>(configuration);
                 }
                 break;
             }
@@ -137,21 +139,27 @@ namespace fft_benchmark
         // Plan creation + warmup for plan initialization.
         const auto before_init = std::chrono::high_resolution_clock::now();
         auto plan = fft_benchmark::fft_helper<hardware_type::cpu>::create_plan(configuration, MPI_COMM_WORLD);
-        std::vector<complex> warmup_in(plan.size_inbox());
-        std::vector<complex> warmup_out(plan.size_inbox());
-        auto warmup_configuration = configuration;
+
+        std::vector<complex> in(plan.size_inbox());
         std::vector<complex> workspace(plan.size_workspace());
-        fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, 1, configuration.ttype, warmup_in.data(),
-                                                           warmup_out.data(), workspace.data());
+        std::vector<complex> out(plan.size_outbox());
+        auto warmup_configuration = configuration;
+        fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, 1, configuration.ttype, in.data(), out.data(),
+                                                           workspace.data());
         const auto after_init = std::chrono::high_resolution_clock::now();
         const auto init_us =
             std::chrono::duration_cast<std::chrono::nanoseconds>(after_init - before_init).count() / 1000.;
 
-        // Input data initialization.
-        std::vector<complex> in(batch_size * plan.size_inbox());
-        fill_signal<complex>(in.begin(), in.begin() + plan.size_inbox());
-        std::vector<complex> out(batch_size * plan.size_outbox());
+        in.resize(batch_size * plan.size_inbox());
+        workspace.resize(batch_size * plan.size_workspace());
+        out.resize(batch_size * plan.size_outbox());
 
+        // Input data initialization.
+        fill_signal<complex>(in.begin(), in.begin() + plan.size_inbox());
+
+        // Environment variable that disables batch-level parallelism.
+        const auto env_serial = std::getenv("FFT_BENCHMARK_SERIAL");
+        const bool is_serial = env_serial != nullptr;
 #ifdef VTUNE_PROFILE
         __itt_resume();
         __itt_domain *domain = __itt_domain_create("FFT.Benchmark.MKL");
@@ -159,16 +167,38 @@ namespace fft_benchmark
         __itt_task_begin(domain, __itt_null, __itt_null, handle_main);
 #endif
         const auto before_compute = std::chrono::high_resolution_clock::now();
-        for (size_t i = 0; i < configuration.niterations; ++i)
+        if (is_serial)
         {
-            tbb::parallel_for(tbb::blocked_range<size_t>(0, batch_size), [&](const tbb::blocked_range<size_t> &range) {
-                for (size_t i = range.begin(); i < range.end(); ++i)
+            fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, configuration.ttype, in.data(),
+                                                               out.data(), workspace.data());
+        }
+        else
+        {
+            for (size_t i = 0; i < configuration.niterations; ++i)
+            {
+#if defined(ENABLE_TBB)
+                tbb::parallel_for(
+                    tbb::blocked_range<size_t>(0, batch_size), [&](const tbb::blocked_range<size_t> &range) {
+                        for (size_t i = range.begin(); i < range.end(); ++i)
+                        {
+                            fft_benchmark::fft_helper<hardware_type::cpu>::run(
+                                plan, 1, configuration.ttype, in.data() + i * plan.size_inbox(),
+                                out.data() + i * plan.size_outbox(), workspace.data() + i * plan.size_workspace());
+                        }
+                    });
+#elif defined(ENABLE_OMP)
+#pragma omp parallel for
+                for (size_t i = 0; i < batch_size; ++i)
                 {
                     fft_benchmark::fft_helper<hardware_type::cpu>::run(
                         plan, 1, configuration.ttype, in.data() + i * plan.size_inbox(),
-                        out.data() + i * plan.size_outbox(), workspace.data());
+                        out.data() + i * plan.size_outbox(), workspace.data() + i * plan.size_workspace());
                 }
-            });
+#else
+                fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, configuration.ttype, in.data(),
+                                                                   out.data(), workspace.data());
+#endif
+            }
         }
         const auto after_compute = std::chrono::high_resolution_clock::now();
 #ifdef VTUNE_PROFILE
@@ -183,8 +213,8 @@ namespace fft_benchmark
         fft_benchmark::fft_helper<hardware_type::cpu>::run(plan, batch_size, invert(configuration.ttype), out.data(),
                                                            in.data(), workspace.data());
 
-        const auto max_error =
-            check_result(in.begin(), in.begin() + plan.size_inbox(), real(1) / static_cast<real>(configuration.nx * configuration.ny));
+        const auto max_error = check_result(in.begin(), in.begin() + plan.size_inbox(),
+                                            real(1) / static_cast<real>(configuration.nx * configuration.ny));
 
         // No data for transfer times.
         benchmark_result result;
@@ -227,13 +257,13 @@ namespace fft_benchmark
         // Plan creation + warmup for plan initialization.
         const auto before_init = std::chrono::high_resolution_clock::now();
         auto plan = fft_benchmark::fft_helper<hardware_type::gpu>::create_plan(configuration, MPI_COMM_WORLD);
-        heffte::fft3d<fft_helper<fft_benchmark::hardware_type::gpu>::backend_tag>::buffer_container<complex>
-            workspace(plan.size_workspace());
+        heffte::fft3d<fft_helper<fft_benchmark::hardware_type::gpu>::backend_tag>::buffer_container<complex> workspace(
+            plan.size_workspace());
         {
             heffte::gpu::vector<complex> gpu_warmup_input(plan.size_inbox());
             heffte::gpu::vector<complex> gpu_warmup_output(plan.size_outbox());
             fft_benchmark::fft_helper<hardware_type::gpu>::run(plan, 1, configuration.ttype, gpu_warmup_input.data(),
-                                                                  gpu_warmup_output.data(), workspace.data());
+                                                               gpu_warmup_output.data(), workspace.data());
         }
         const auto after_init = std::chrono::high_resolution_clock::now();
         const auto init_us =
@@ -255,14 +285,15 @@ namespace fft_benchmark
             std::chrono::duration_cast<std::chrono::nanoseconds>(after_in_transfer - before_in_transfer).count() / 1000;
         const auto average_in_transfer_us =
             in_transfer_us / (static_cast<double>(batch_size * configuration.niterations));
-        const auto in_bandwith_mibps = static_cast<double>(configuration.niterations * in.size() * sizeof(in[0])) / static_cast<double>(in_transfer_us);
+        const auto in_bandwith_mibps = static_cast<double>(configuration.niterations * in.size() * sizeof(in[0])) /
+                                       static_cast<double>(in_transfer_us);
 
         heffte::gpu::vector<complex> gpu_output(batch_size * plan.size_outbox());
         const auto before_compute = std::chrono::high_resolution_clock::now();
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
-            fft_benchmark::fft_helper<hardware_type::gpu>::run(
-                plan, batch_size, configuration.ttype, gpu_input.data(), gpu_output.data(), workspace.data());
+            fft_benchmark::fft_helper<hardware_type::gpu>::run(plan, batch_size, configuration.ttype, gpu_input.data(),
+                                                               gpu_output.data(), workspace.data());
         }
         heffte::gpu::synchronize_default_stream();
         const auto after_compute = std::chrono::high_resolution_clock::now();
@@ -283,11 +314,12 @@ namespace fft_benchmark
             1000.;
         const auto average_out_transfer_us =
             out_transfer_us / (static_cast<double>(batch_size * configuration.niterations));
-        const auto out_bandwith_mibps = static_cast<double>(configuration.niterations * out.size() * sizeof(out[0])) / static_cast<double>(out_transfer_us);
+        const auto out_bandwith_mibps = static_cast<double>(configuration.niterations * out.size() * sizeof(out[0])) /
+                                        static_cast<double>(out_transfer_us);
 
         // Reverting the FFT operation for validation purposes.
         fft_benchmark::fft_helper<hardware_type::gpu>::run(plan, batch_size, invert(configuration.ttype),
-                                                              gpu_output.data(), gpu_input.data(), workspace.data());
+                                                           gpu_output.data(), gpu_input.data(), workspace.data());
         in = heffte::gpu::transfer::unload(gpu_input);
         const auto max_error = check_result(in.begin(), in.begin() + plan.size_outbox(),
                                             real(1) / static_cast<real>(configuration.nx * configuration.ny));
