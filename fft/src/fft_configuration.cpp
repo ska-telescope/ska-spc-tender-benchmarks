@@ -175,7 +175,7 @@ namespace fft_benchmark
                         configuration.ny = dimension.second;
                         configuration.niterations = niterations;
                         configuration.memorysize = memorysize;
-                        configuration.in_place = in_place;
+                        // configuration.in_place = in_place;
                         configuration.htype = hardware_type;
                         configurations.emplace_back(configuration);
                     }

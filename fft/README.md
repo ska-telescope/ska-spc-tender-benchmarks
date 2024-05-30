@@ -68,7 +68,6 @@ The benchmarking tool uses a yaml configuration file system. Examples are provid
 ```yaml
 nbatches: 100
 niterations: 100
-in_place: true
 dimensions: [[128, 128], [256, 256], [512, 512], [1024, 1024], [2048, 2048]]
 float_types: [float]
 transform_types: [forward]

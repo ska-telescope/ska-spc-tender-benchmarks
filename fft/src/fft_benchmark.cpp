@@ -24,12 +24,12 @@ namespace fft_benchmark
         using real = typename fft_benchmark::float_type_helper<ftype>::real;
         const auto plan = fft_helper<htype>::create_plan(configuration, MPI_COMM_WORLD);
         const size_t plan_bytes = plan.size_comm_buffers();
-        const size_t remaining_bytes = (plan_bytes > configuration.memorysize) ? 0 : configuration.memorysize - plan_bytes;
+        const size_t remaining_bytes =
+            (plan_bytes > configuration.memorysize) ? 0 : configuration.memorysize - plan_bytes;
         const size_t bytes_per_batch =
             (plan.size_inbox() + plan.size_outbox() + plan.size_workspace()) * sizeof(complex);
         return remaining_bytes / bytes_per_batch;
     }
-
 
     size_t compute_batch_size(const fft_benchmark::configuration &configuration)
     {

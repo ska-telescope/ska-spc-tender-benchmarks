@@ -12,7 +12,8 @@ add_executable(fft-benchmarks)
 
 # Internal files and includes
 target_include_directories(fft-benchmarks PRIVATE ${CMAKE_SOURCE_DIR}/inc)
-target_sources(fft-benchmarks PRIVATE inc/fft_configuration.h src/fft_configuration.cpp)
+target_sources(fft-benchmarks PRIVATE inc/fft_configuration.h
+                                      src/fft_configuration.cpp)
 target_sources(fft-benchmarks PRIVATE inc/fft_benchmark.h src/fft_benchmark.cpp)
 target_sources(fft-benchmarks PRIVATE src/main.cpp)
 
@@ -36,12 +37,20 @@ if(${ENABLE_GPU})
 endif()
 
 #
-# Parallelization management
-# Adds the right dependencies and defines depending on the parallelization library.
+# Parallelization management Adds the right dependencies and defines depending
+# on the parallelization library.
 #
-set(PARALLELIZATION_LIBRARY "TBB" CACHE STRING "Parallelization library to use for CPU benchmarks. May be TBB, OMP or NONE.")
+set(PARALLELIZATION_LIBRARY
+    "TBB"
+    CACHE
+      STRING
+      "Parallelization library to use for CPU benchmarks. May be TBB, OMP or NONE."
+)
 if(NOT (${PARALLELIZATION_LIBRARY} MATCHES "^(OMP|TBB|NONE)$"))
-  message(FATAL_ERROR "The PARALLELIZATION_LIBRARY parameter must be set to either OMP, TBB or NONE.")
+  message(
+    FATAL_ERROR
+      "The PARALLELIZATION_LIBRARY parameter must be set to either OMP, TBB or NONE."
+  )
 endif()
 
 if(${PARALLELIZATION_LIBRARY} STREQUAL "TBB")

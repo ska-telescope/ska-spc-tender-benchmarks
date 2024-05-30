@@ -1,6 +1,6 @@
 memorysize: 1000000000
 niterations: 100
-in_place: true
+#in_place: true
 dimensions: [[64, 64], [128, 128], [512, 512], [1024, 1024], [2048, 2048], [4096, 4096], [8192, 8192], [16384, 16384], [24576,24576]]
 float_types: [float]
 transform_types: [forward]

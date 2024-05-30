@@ -42,7 +42,7 @@ namespace fft_benchmark
         size_t nx, ny;
         size_t niterations;
         size_t memorysize;
-        bool in_place;
+        // bool in_place;
     };
 
     template <hardware_type htype, float_type ftype>
