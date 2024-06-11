@@ -1,0 +1,25 @@
+spack:
+  specs:
+  - heffte+fftw+cuda ^fftw openmp=true ^openmpi
+  - yaml-cpp
+  view: true
+  concretizer:
+    unify: true
+  container:
+    format: docker
+  modules:
+    default:
+      enable:
+      - tcl
+      tcl:
+        hash_length: 0
+        naming_scheme: '{compiler.name}/{compiler.version}/{name}/{version}'
+        all:
+          environment:
+            set:
+              '{name}_ROOT': '{prefix}'
+    prefix_inspections:
+      lib64: [LD_LIBRARY_PATH]
+      lib: [LD_LIBRARY_PATH]
+  mirrors:
+    E4S: https://cache.e4s.io
