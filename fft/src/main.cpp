@@ -86,10 +86,14 @@ std::string hardware_type_string(const fft_benchmark::hardware_type htype)
 {
     switch (htype)
     {
+#ifdef ENABLE_CPU
     case fft_benchmark::hardware_type::cpu:
         return "cpu";
+#endif
+#ifdef ENABLE_GPU
     case fft_benchmark::hardware_type::gpu:
-        return "nvidia";
+        return "gpu";
+#endif
     default:
         return "";
     }

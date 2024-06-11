@@ -41,7 +41,7 @@ endif()
 # on the parallelization library.
 #
 set(PARALLELIZATION_LIBRARY
-    "TBB"
+    "OMP"
     CACHE
       STRING
       "Parallelization library to use for CPU benchmarks. May be TBB, OMP or NONE."
