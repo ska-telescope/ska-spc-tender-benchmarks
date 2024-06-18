@@ -1,0 +1,7 @@
+grid_size: 1024
+nstations: 2
+ntimeslots: 2
+ntimesteps_per_subgrid: 128
+nchannels: 16
+subgrid_size: 32
+hardware_types: [cpu, gpu]

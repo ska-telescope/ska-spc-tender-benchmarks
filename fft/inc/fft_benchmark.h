@@ -25,12 +25,12 @@ namespace fft_benchmark
         using real = double;
     };
 
-    template <hardware_type htype>
+    template <benchmarks_common::hardware_type htype>
     struct hardware_type_helper;
 
 #ifdef ENABLE_CPU
     template <>
-    struct hardware_type_helper<hardware_type::cpu>
+    struct hardware_type_helper<benchmarks_common::hardware_type::cpu>
     {
         using target_tag = heffte::backend::default_backend<heffte::tag::cpu>::type;
     };
@@ -38,13 +38,26 @@ namespace fft_benchmark
 
 #ifdef ENABLE_GPU
     template <>
-    struct hardware_type_helper<hardware_type::gpu>
+    struct hardware_type_helper<benchmarks_common::hardware_type::gpu>
     {
         using target_tag = heffte::backend::default_backend<heffte::tag::gpu>::type;
     };
 #endif
 
-    template <hardware_type htype>
+    inline std::string float_type_string(const fft_benchmark::float_type ftype)
+    {
+        switch (ftype)
+        {
+        case fft_benchmark::float_type::single_precision:
+            return "single";
+        case fft_benchmark::float_type::double_precision:
+            return "double";
+        default:
+            return "";
+        }
+    }
+
+    template <benchmarks_common::hardware_type htype>
     struct fft_helper
     {
         using backend_tag = typename hardware_type_helper<htype>::target_tag;
@@ -107,7 +120,7 @@ namespace fft_benchmark
 
         static benchmark_result invalid_result()
         {
-            return benchmark_result{status_t::failure, 0, 0, -1., -1., -1., -1.};
+            return benchmark_result{};
         }
     };
 
