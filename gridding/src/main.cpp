@@ -1,52 +1,42 @@
 #include <algorithm>
-#include <array>
-#include <chrono>
-#include <cmath>
-#include <cstddef>
 #include <filesystem>
 #include <iostream>
 #include <string>
-#include <sys/ioctl.h>
-#include <vector>
 
 #ifdef VTUNE_PROFILE
 #include <ittnotify.h>
 #endif
 
 #include "benchmarks_common.h"
-#include "fft_benchmark.h"
-#include "fft_configuration.h"
+#include "gridding_benchmark.h"
+#include "gridding_configuration.h"
 
-
-void run(const std::vector<fft_benchmark::configuration> &configurations, const std::filesystem::path &output)
+void run(const std::vector<gridding_benchmark::configuration> &configurations, const std::filesystem::path &output)
 {
 #ifdef VTUNE_PROFILE
     __itt_pause();
 #endif
 
-    struct winsize w;
-    ioctl(0, TIOCGWINSZ, &w);
-    const auto columns = w.ws_col;
-
-    std::cout << "##################################\n";
-    std::cout << "#### FFT benchmarking utility ####\n";
-    std::cout << "##################################\n\n";
-    std::cout << "##############################\n";
+    std::cout << "##################################################\n";
+    std::cout << "#### Gridding/degridding benchmarking utility ####\n";
+    std::cout << "##################################################\n\n";
+    std::cout << "##################################################\n";
     std::cout << "## Benchmarking configurations\n\n";
 
     std::vector<std::array<std::string, 6>> config_table;
-    config_table.emplace_back(std::array<std::string, 6>{"Configuration ID", "  Iterations", "  Dimensions",
-                                                         "  Max memory size", "  Precision", "  Hardware"});
+    config_table.emplace_back(std::array<std::string, 6>{"Configuration ID", "  Grid size", "  Subgrid size",
+                                                         "  Number of channels", "  Number of stations", "  Hardware"});
+
     int i_configuration = 0;
     for (const auto configuration : configurations)
     {
         std::array<std::string, 6> line;
         line[0] = std::to_string(i_configuration++);
-        line[1] = std::to_string(configuration.niterations);
-        line[2] = std::to_string(configuration.nx) + " * " + std::to_string(configuration.ny);
-        line[3] = benchmarks_common::bytes_to_memory_size(configuration.memorysize);
-        line[4] = (configuration.ftype == fft_benchmark::float_type::single_precision ? "single" : "double");
-        line[5] = hardware_type_string(configuration.htype);
+        line[1] = std::to_string(configuration.grid_size);
+        line[2] = std::to_string(configuration.subgrid_size);
+        line[3] = std::to_string(configuration.nchannels);
+        line[4] = std::to_string(configuration.nstations);
+        line[5] = benchmarks_common::hardware_type_string(configuration.htype);
         config_table.emplace_back(line);
     }
     benchmarks_common::print_columns(config_table);
@@ -57,7 +47,7 @@ void run(const std::vector<fft_benchmark::configuration> &configurations, const 
     std::cout << "Warming up…";
 
     const auto begin_warmup = std::chrono::high_resolution_clock::now();
-    fft_benchmark::launch_benchmark(configurations.front());
+    gridding_benchmark::launch_gridding(configurations.front());
     const auto end_warmup = std::chrono::high_resolution_clock::now();
     const auto warmup_s = std::chrono::duration_cast<std::chrono::seconds>(end_warmup - begin_warmup).count();
 
@@ -67,7 +57,7 @@ void run(const std::vector<fft_benchmark::configuration> &configurations, const 
     std::cout << std::endl;
 
     std::vector<std::string> titles;
-    std::vector<fft_benchmark::benchmark_result> results;
+    std::vector<gridding_benchmark::benchmark_result> results;
 
     std::cout << "###############\n";
     std::cout << "## Benchmarking\n\n";
@@ -79,7 +69,7 @@ void run(const std::vector<fft_benchmark::configuration> &configurations, const 
         std::cout.flush();
 
         const auto begin = std::chrono::high_resolution_clock::now();
-        results.emplace_back(fft_benchmark::launch_benchmark(configuration));
+        results.emplace_back(gridding_benchmark::launch_gridding(configuration));
         const auto end = std::chrono::high_resolution_clock::now();
 
         const auto time_s = std::chrono::duration_cast<std::chrono::seconds>(end - begin).count();
@@ -92,16 +82,14 @@ void run(const std::vector<fft_benchmark::configuration> &configurations, const 
     const auto bench_time_s = std::chrono::duration_cast<std::chrono::seconds>(end_bench - begin_bench).count();
     std::cout << "==> Total benchmarking time: " << bench_time_s << " seconds." << std::endl << std::endl;
 
-    std::vector<std::array<std::string, 12>> table;
+    std::vector<std::array<std::string, 10>> table;
 
-    std::array<std::string, 12> labels{
+    std::array<std::string, 10> labels{
         "  Configuration ID",
-        "  Dimensions",
-        "  Status",
-        "  Max error",
-        "  Number of iterations",
-        "  Batch size",
-        "  Init time (us)",
+        "  Grid size",
+        "  Subgrid size",
+        "  Number of channels",
+        "  Number of stations",
         "  Mean input transfer time (us)",
         "  Achieved input bandwidth (MiB/s)",
         "  Mean compute time (us)",
@@ -111,35 +99,21 @@ void run(const std::vector<fft_benchmark::configuration> &configurations, const 
 
     const auto to_result_string = [](const double x) { return x < 0. ? "N/A" : std::to_string(x); };
 
-    const auto to_correctness_string = [](const fft_benchmark::benchmark_result::status_t status) {
-        switch (status)
-        {
-        case fft_benchmark::benchmark_result::status_t::sucess:
-            return std::string{"OK"};
-        case fft_benchmark::benchmark_result::status_t::failure:
-            return std::string{"ERROR"};
-        }
-        return std::string{};
-    };
-
     table.emplace_back(labels);
     for (size_t i = 0; i < results.size(); ++i)
     {
         const auto &result = results[i];
         const auto &title = titles[i];
-        std::array<std::string, 12> row{title,
-                                        std::to_string(configurations[i].nx) + " * " +
-                                            std::to_string(configurations[i].ny),
-                                        to_correctness_string(result.status),
-                                        to_result_string(result.max_error),
-                                        std::to_string(result.niterations),
-                                        std::to_string(result.batch_size),
-                                        to_result_string(result.init_time),
-                                        to_result_string(result.in_transfer_time),
-                                        to_result_string(result.in_bandwidth),
-                                        to_result_string(result.compute_time),
-                                        to_result_string(result.out_transfer_time),
-                                        to_result_string(result.out_bandwidth)};
+        std::array<std::string, 10> row{title,
+                                       std::to_string(configurations[i].grid_size),
+                                       std::to_string(configurations[i].subgrid_size),
+                                       std::to_string(configurations[i].nchannels),
+                                       std::to_string(configurations[i].nstations),
+                                       to_result_string(result.in_transfer_time),
+                                       to_result_string(result.in_bandwidth),
+                                       to_result_string(result.compute_time),
+                                       to_result_string(result.out_transfer_time),
+                                       to_result_string(result.out_bandwidth)};
         table.emplace_back(row);
     }
 
@@ -156,17 +130,17 @@ int main(int argc, char **argv)
 {
     if (argc < 3)
     {
-        std::cerr << "fft-benchmarks <configuration file> <output file>" << std::endl;
+        std::cerr << "gridding-benchmarks <configuration file> <output file>" << std::endl;
         exit(-1);
     }
 
     const std::filesystem::path configuration_path = argv[1];
     const std::filesystem::path output_path = argv[2];
 
-    std::vector<fft_benchmark::configuration> configurations;
+    std::vector<gridding_benchmark::configuration> configurations;
     try
     {
-        configurations = fft_benchmark::read_configurations(argv[1]);
+        configurations = gridding_benchmark::read_configuration(configuration_path);
     }
     catch (const std::exception &e)
     {
@@ -175,7 +149,5 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    MPI_Init(&argc, &argv);
     run(configurations, output_path);
-    MPI_Finalize();
 }
