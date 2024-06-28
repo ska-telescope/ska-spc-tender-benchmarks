@@ -141,12 +141,6 @@ namespace fft_benchmark
         }
         const size_t memorysize = yaml_config["memorysize"].as<size_t>();
 
-        const auto inplace_err_func = []() {
-            std::cerr << "Invalid inplace section. Should look like this:" << std::endl;
-            std::cerr << "inplace: <true if the transforms should be run in place, false otherwise>" << std::endl;
-            exit(-1);
-        };
-
         std::vector<fft_benchmark::configuration> configurations;
         configurations.reserve(dimensions.size() * float_types.size());
         for (const auto hardware_type : hardware_types)
