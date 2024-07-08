@@ -1,5 +1,6 @@
 #!/bin/bash
 source ${SPACK_ROOT}/share/spack/setup-env.sh
+spack env deactivate
 
 # Setting up a few path variables and preparing the askap repo dir.
 ORGPATH=`pwd`
