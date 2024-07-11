@@ -1,136 +1,61 @@
-diff --git a/attic/tConvolveACC/tConvolveACC.cc b/attic/tConvolveACC/tConvolveACC.cc
-index bbe7a17..6438dd9 100644
---- a/attic/tConvolveACC/tConvolveACC.cc
-+++ b/attic/tConvolveACC/tConvolveACC.cc
-@@ -153,10 +153,12 @@ void gridKernelACC(const std::vector<Value>& data, const int support,
-             for (suppu = 0; suppu < sSize; suppu++) {
-                 Real *dref = (Real *)&d_grid[gind+suppv*gSize+suppu];
-                 const std::complex<Real> cval = d_data[dind] * d_C[cind+suppv*sSize+suppu];
-+                const auto real = cval.real();
-+                const auto imag = cval.imag();
-                 #pragma acc atomic update
--                dref[0] = dref[0] + cval.real();
-+                dref[0] += real;
-                 #pragma acc atomic update
--                dref[1] = dref[1] + cval.imag();
-+                dref[1] += imag;
-             }
-         }
- #else
-diff --git a/attic/tConvolveACC/tConvolveCmplxMult.cc b/attic/tConvolveACC/tConvolveCmplxMult.cc
-index 26335d3..fd7ad79 100644
---- a/attic/tConvolveACC/tConvolveCmplxMult.cc
-+++ b/attic/tConvolveACC/tConvolveCmplxMult.cc
-@@ -191,14 +191,16 @@ void gridKernelACComplex(const std::vector<Value>& data, const int support,
-             for (suppu = 0; suppu < sSize; suppu++) {
-                 Real *dref = (Real *)&d_grid[gind+suppv*gSize+suppu];
-                 const std::complex<Real> cval = d_data[dind] * d_C[cind+suppv*sSize+suppu];
-+                const auto real = cval.real();
-+                const auto imag = cval.imag();
- #ifdef GPU
-                 #pragma acc atomic update
- #endif
--                dref[0] = dref[0] + cval.real();
-+                dref[0] += real;
- #ifdef GPU
-                 #pragma acc atomic update
- #endif
--                dref[1] = dref[1] + cval.imag();
-+                dref[1] += imag;
-             }
-         }
- 
 diff --git a/current/tConvolveACC/Benchmark.cc b/current/tConvolveACC/Benchmark.cc
-index b0f6d7f..c84c98f 100644
+index b0f6d7f..4329575 100644
 --- a/current/tConvolveACC/Benchmark.cc
 +++ b/current/tConvolveACC/Benchmark.cc
-@@ -449,7 +449,7 @@ void Benchmark::gridKernelACC(const std::vector<Value>& C,
+@@ -465,10 +465,12 @@ void Benchmark::gridKernelACC(const std::vector<Value>& C,
+             for (suppu = 0; suppu < mySize; suppu++) {
+                 Real *gptr_re = (Real *)&d_grid[gind+suppv*gSize+suppu];
+                 const std::complex<Real> cval = d_data[dind] * d_C[cind+suppv*mySize+suppu];
++                const auto real = cval.real();
++                const auto imag = cval.imag();
+                 #pragma acc atomic update
+-                gptr_re[0] = gptr_re[0] + cval.real();
++                gptr_re[0] += real;
+                 #pragma acc atomic update
+-                gptr_re[1] = gptr_re[1] + cval.imag();
++                gptr_re[1] = imag;
+             }
+         }
  
-         // Kernel info
-         const int wind = d_iw[dind];
--        const int mySize = d_sSize[wind];
-+        const int mySize = sSize[wind];
-         const int support = mySize/2;
+diff --git a/current/tConvolveMPI/Makefile b/current/tConvolveMPI/Makefile
+index 67e650d..9ff5be8 100644
+--- a/current/tConvolveMPI/Makefile
++++ b/current/tConvolveMPI/Makefile
+@@ -21,9 +21,9 @@
+ # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  
-         // The actual grid point from which we offset
-@@ -547,7 +547,7 @@ void Benchmark::degridKernelACC(const std::vector<Value>& grid,
+ # standard MPI c++ compiler
+-#CXX=mpicxx
++CXX=mpicxx
+ # cray compiler (e.g. Galaxy)
+-CXX=CC
++#CXX=CC
+ CFLAGS=-O3 -fstrict-aliasing -fcx-limited-range -Wall -Wextra
+ LIBS=
  
-         // Kernel info
-         const int wind = d_iw[dind];
--        const int mySize = d_sSize[wind];
-+        const int mySize = sSize[wind];
-         const int support = mySize/2;
+diff --git a/current/tMajorACC/Makefile b/current/tMajorACC/Makefile
+index 7d5d7a7..6a0e9eb 100644
+--- a/current/tMajorACC/Makefile
++++ b/current/tMajorACC/Makefile
+@@ -41,7 +41,7 @@ else
+ endif
  
-         // The actual grid point from which we offset
-diff --git a/current/tHogbomCleanACC/HogbomACC.cc b/current/tHogbomCleanACC/HogbomACC.cc
-index 7f2d77f..a3d5dd3 100644
---- a/current/tHogbomCleanACC/HogbomACC.cc
-+++ b/current/tHogbomCleanACC/HogbomACC.cc
-@@ -88,17 +88,17 @@ void HogbomACC::deconvolve(const vector<float>& dirty,
-         model[absPeakPos] += absPeakVal * g_gain;
+ CFLAGS=-fast -O3 $(CFLAGS_EXTRA)
+-LDFLAGS=-L$(FFTW_LIB) -lfftw3f $(LDFLAGS_EXTRA)
++LDFLAGS=-lfftw3f $(LDFLAGS_EXTRA)
  
-         // Subtract the PSF from the residual image
--        //subtractPSF(psf, psfWidth, residual, dirtyWidth, absPeakPos, psfPeakPos, absPeakVal, g_gain);
--        subtractPSF(psfdata, psfWidth, resdata, dirtyWidth, absPeakPos, psfPeakPos, absPeakVal, g_gain);
-+        subtractPSF(psf, psfWidth, residual, dirtyWidth, absPeakPos, psfPeakPos, absPeakVal, g_gain);
-+        //subtractPSF(psfdata, psfWidth, resdata, dirtyWidth, absPeakPos, psfPeakPos, absPeakVal, g_gain);
-     }
- }
+ all:		tMajorACC
  
--//void HogbomACC::subtractPSF(const vector<float>& psf,
--//        const size_t psfWidth,
--//        vector<float>& residual,
--void HogbomACC::subtractPSF(const float *psfdata,
-+void HogbomACC::subtractPSF(const vector<float>& psf,
-         const size_t psfWidth,
--        float *resdata,
-+        vector<float>& residual,
-+//void HogbomACC::subtractPSF(const float *psfdata,
-+//        const size_t psfWidth,
-+//        float *resdata,
-         const size_t residualWidth,
-         const size_t peakPos, const size_t psfPeakPos,
-         const float absPeakVal,
-@@ -119,15 +119,14 @@ void HogbomACC::subtractPSF(const float *psfdata,
-     const int stopx = min(residualWidth - 1, rx + (psfWidth - px - 1));
-     const int stopy = min(residualWidth - 1, ry + (psfWidth - py - 1));
- 
--    // referece the basic data arrays for use in the parallel loop
--    //const float *psfdata = psf.data();
--    //float *resdata = residual.data();
--
-     #pragma acc parallel loop collapse(2) gang vector
-     for (int y = starty; y <= stopy; ++y) {
-         for (int x = startx; x <= stopx; ++x) {
--            resdata[posToIdx(residualWidth, Position(x, y))] -= gain * absPeakVal
--                * psfdata[posToIdx(psfWidth, Position(x - diffx, y - diffy))];
-+            const Position position{x, y};
-+            const Position position_center{x - diffx, y - diffy};
-+
-+            residual[posToIdx(residualWidth, position)] -= gain * absPeakVal
-+                * psf[posToIdx(psfWidth, position_center)];
- 
-             //resdata[y * residualWidth + x] -= gain * absPeakVal * psfdata[(y-diffy) * psfWidth + (x-diffx)];
- 
-diff --git a/current/tHogbomCleanACC/HogbomACC.h b/current/tHogbomCleanACC/HogbomACC.h
-index 037ffc9..1d3a894 100644
---- a/current/tHogbomCleanACC/HogbomACC.h
-+++ b/current/tHogbomCleanACC/HogbomACC.h
-@@ -54,12 +54,12 @@ class HogbomACC {
-         void findPeak(const float *image,
-                 float& maxVal, size_t& maxPos, const size_t size);
- 
--        //void subtractPSF(const std::vector<float>& psf,
--        //        const size_t psfWidth,
--        //        std::vector<float>& residual,
--        void subtractPSF(const float *psf,
-+        void subtractPSF(const std::vector<float>& psf,
-                 const size_t psfWidth,
--                float *residual,
-+                std::vector<float>& residual,
-+        //void subtractPSF(const float *psf,
-+        //        const size_t psfWidth,
-+        //        float *residual,
-                 const size_t residualWidth,
-                 const size_t peakPos, const size_t psfPeakPos,
-                 const float absPeakVal, const float gain);
+diff --git a/current/tMajorACC/tMajorACC.cc b/current/tMajorACC/tMajorACC.cc
+index cdf0702..5f7454d 100644
+--- a/current/tMajorACC/tMajorACC.cc
++++ b/current/tMajorACC/tMajorACC.cc
+@@ -166,7 +166,7 @@ void gridKernelACC(const std::vector<std::complex<float> >& data, const int supp
+     //  - letting the compiler choose using tile(*,*,*) should work but isn't. Will be fixed in the PGI release after
+     //    next (currently using pgc++ 18.3-0).
+     // wait(1): wait until async(1) is finished...
+-    #pragma acc parallel loop tile(77,6,3) \
++    #pragma acc parallel loop \
+             present(d_grid[0:gSize*gSize],d_data[0:d_size],d_C[0:c_size], \
+                     d_cOffset[0:d_size],d_iu[0:d_size],d_iv[0:d_size]) wait(1)
+     for (int dind = 0; dind < d_size; ++dind) {

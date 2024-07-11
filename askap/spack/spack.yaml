@@ -8,6 +8,8 @@ spack:
   - nvhpc
   - openmpi
   - fftw
+  - cmake
+  - cuda
   view: true
   concretizer:
     unify: true

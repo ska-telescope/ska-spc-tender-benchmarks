@@ -3,4 +3,5 @@ build-temp*
 .vscode
 *.sif
 .spack-env
+spack.lock
 .cache
