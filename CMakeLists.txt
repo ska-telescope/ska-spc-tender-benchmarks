@@ -1,6 +1,15 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.22)
 
 project(ska-spc-tender-benchmarks LANGUAGES CXX CUDA)
+
+
+# Hardware options
+option(ENABLE_CPU "Enable CPU benchmarks" ON)
+option(ENABLE_GPU "Enable GPU benchmarks" ON)
+
+# bench options
+option(ENABLE_BENCH_FFT "Enable the benchmarks related to FFT" ON)
+option(ENABLE_BENCH_GRIDDING "Enable the benchmarks related to Gridding" ON)
 
 set(CMAKE_CXX_FLAGS "-g")
 set(CMAKE_CXX_STANDARD 17)
@@ -20,14 +29,17 @@ if(VTUNE_PROFILE)
   FetchContent_MakeAvailable(ittnotify)
 endif()
 
-# Hardware options
-option(ENABLE_CPU "Enable CPU benchmarks." ON)
-option(ENABLE_GPU "Enable GPU benchmarks." ON)
 
 find_package(MPI REQUIRED)
 find_package(TBB REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 add_subdirectory(benchmarks-common)
-add_subdirectory(fft)
+
+if(ENABLE_BENCH_FFT)
+  add_subdirectory(fft)
+endif()
+
+if(ENABLE_BENCH_GRIDDING)
 add_subdirectory(gridding)
+endif()

@@ -27,20 +27,22 @@ namespace gridding_benchmark
         for (const auto &hardware_type_config : hardware_types_config)
         {
             const auto hardware_type_string = hardware_type_config.as<std::string>();
-#ifdef ENABLE_CPU
-            if (hardware_type_string == "cpu")
+            if (hardware_type_string == "cpu" )
             {
-                hardware_types.push_back(benchmarks_common::hardware_type::cpu);
-                continue;
+                if(is_hardware_type_enabled(benchmarks_common::hardware_type::cpu)){
+                    hardware_types.push_back(benchmarks_common::hardware_type::cpu);
+                    continue;
+                }
+                benchmarks_common::log_and_abort("CPU support is disabled");
             }
-#endif
-#ifdef ENABLE_GPU
             if (hardware_type_string == "gpu")
             {
-                hardware_types.push_back(benchmarks_common::hardware_type::gpu);
-                continue;
+                if(is_hardware_type_enabled(benchmarks_common::hardware_type::gpu)){                
+                    hardware_types.push_back(benchmarks_common::hardware_type::gpu);
+                    continue;
+                }
+                benchmarks_common::log_and_abort("GPU support is disabled");                
             }
-#endif
             std::cerr << "Invalid hardware_type token " << hardware_type_string
                       << " was found. Must be either cpu or gpu." << std::endl;
             exit(-1);

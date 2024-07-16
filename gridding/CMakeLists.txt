@@ -19,10 +19,10 @@ endif()
 
 # Hardware options
 if(${ENABLE_CPU})
-  target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_CPU)
+  target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_CPU=1)
 endif()
 if(${ENABLE_GPU})
-  target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_GPU)
+  target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_GPU=1)
 endif()
 
 target_include_directories(gridding-benchmarks PRIVATE inc)

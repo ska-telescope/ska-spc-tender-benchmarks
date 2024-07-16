@@ -6,18 +6,15 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace benchmarks_common
 {
     enum class hardware_type
     {
-#ifdef ENABLE_CPU
         cpu,
-#endif
-#ifdef ENABLE_GPU
         gpu,
-#endif
         err
     };
 
@@ -25,17 +22,27 @@ namespace benchmarks_common
     {
         switch (htype)
         {
-#ifdef ENABLE_CPU
         case benchmarks_common::hardware_type::cpu:
             return "cpu";
-#endif
-#ifdef ENABLE_GPU
         case benchmarks_common::hardware_type::gpu:
             return "gpu";
-#endif
         default:
             return "";
         }
+    }
+
+    inline bool is_hardware_type_enabled(const benchmarks_common::hardware_type htype){
+    #ifdef ENABLE_CPU
+        if(htype == benchmarks_common::hardware_type::cpu){
+            return true;
+        }
+    #endif
+    #ifdef ENABLE_GPU
+        if(htype == benchmarks_common::hardware_type::gpu){
+            return true;
+        }
+    #endif
+        return false;
     }
 
     template <size_t N>
@@ -82,4 +89,10 @@ namespace benchmarks_common
     size_t log2_size_t(size_t index);
 
     std::string bytes_to_memory_size(const size_t n);
+
+    inline void log_and_abort(std::string_view message, int status_code = -1){
+        std::cerr << "Error: " << message << "\n";
+        std::exit(status_code);
+    }
+    
 } // namespace benchmarks_common
