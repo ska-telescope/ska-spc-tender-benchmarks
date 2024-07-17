@@ -19,37 +19,20 @@ target_link_libraries(fft-benchmarks PUBLIC MPI::MPI_CXX)
 target_link_libraries(fft-benchmarks PUBLIC benchmarks-common)
 
 # Hardware options
-if(${ENABLE_CPU})
+if(ENABLE_CPU)
   target_compile_definitions(fft-benchmarks PUBLIC ENABLE_CPU)
 endif()
-if(${ENABLE_GPU})
+if(ENABLE_GPU)
   target_compile_definitions(fft-benchmarks PUBLIC ENABLE_GPU)
 endif()
 
-#
-# Parallelization management Adds the right dependencies and defines depending
-# on the parallelization library.
-#
-set(PARALLELIZATION_LIBRARY
-    "OMP"
-    CACHE
-      STRING
-      "Parallelization library to use for CPU benchmarks. May be TBB, OMP or NONE."
-)
-if(NOT (${PARALLELIZATION_LIBRARY} MATCHES "^(OMP|TBB|NONE)$"))
-  message(
-    FATAL_ERROR
-      "The PARALLELIZATION_LIBRARY parameter must be set to either OMP, TBB or NONE."
-  )
-endif()
-
-if(${PARALLELIZATION_LIBRARY} STREQUAL "TBB")
+if(PARALLELIZATION_LIBRARY STREQUAL "TBB")
   find_package(TBB REQUIRED)
   target_link_libraries(fft-benchmarks PUBLIC TBB::tbb)
   target_compile_definitions(fft-benchmarks PUBLIC ENABLE_TBB)
 endif()
 
-if(${PARALLELIZATION_LIBRARY} STREQUAL "OMP")
+if(PARALLELIZATION_LIBRARY STREQUAL "OMP")
   find_package(OpenMP REQUIRED)
   target_link_libraries(fft-benchmarks PUBLIC OpenMP::OpenMP_CXX)
   target_compile_definitions(fft-benchmarks PUBLIC ENABLE_OMP)

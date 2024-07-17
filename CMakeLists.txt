@@ -11,6 +11,29 @@ option(ENABLE_GPU "Enable GPU benchmarks" ON)
 option(ENABLE_BENCH_FFT "Enable the benchmarks related to FFT" ON)
 option(ENABLE_BENCH_GRIDDING "Enable the benchmarks related to Gridding" ON)
 
+
+# parallelization options
+#
+# Parallelization management Adds the right dependencies and defines depending
+# on the parallelization library.
+#
+set(PARALLELIZATION_LIBRARIES "OMP" "TBB")
+set(PARALLELIZATION_LIBRARY
+    "OMP"
+    CACHE
+      STRING
+      "Parallelization library to use for CPU benchmarks. May be TBB, OMP or NONE."
+)
+set_property(CACHE PARALLELIZATION_LIBRARY PROPERTY STRINGS ${PARALLELIZATION_LIBRARIES})
+
+if(NOT PARALLELIZATION_LIBRARY MATCHES "^(OMP|TBB|NONE)$")
+  message(
+    FATAL_ERROR
+      "The PARALLELIZATION_LIBRARY parameter must be set to either OMP, TBB or NONE."
+  )
+endif()
+
+
 set(CMAKE_CXX_FLAGS "-g")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,7 +54,6 @@ endif()
 
 
 find_package(MPI REQUIRED)
-find_package(TBB REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 add_subdirectory(benchmarks-common)
