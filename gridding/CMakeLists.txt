@@ -47,5 +47,4 @@ target_sources(
 
 target_link_libraries(gridding-benchmarks PUBLIC yaml-cpp)
 target_link_libraries(gridding-benchmarks PUBLIC MPI::MPI_CXX)
-target_link_libraries(gridding-benchmarks PUBLIC TBB::tbb)
 target_link_libraries(gridding-benchmarks PUBLIC benchmarks-common)

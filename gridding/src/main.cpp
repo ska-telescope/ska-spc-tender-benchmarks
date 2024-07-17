@@ -8,6 +8,7 @@
 #endif
 
 #include "benchmarks_common.h"
+#include "degridding_benchmark.h"
 #include "gridding_benchmark.h"
 #include "gridding_configuration.h"
 
@@ -23,20 +24,22 @@ void run(const std::vector<gridding_benchmark::configuration> &configurations, c
     std::cout << "##################################################\n";
     std::cout << "## Benchmarking configurations\n\n";
 
-    std::vector<std::array<std::string, 6>> config_table;
-    config_table.emplace_back(std::array<std::string, 6>{"Configuration ID", "  Grid size", "  Subgrid size",
-                                                         "  Number of channels", "  Number of stations", "  Hardware"});
+    std::vector<std::array<std::string, 7>> config_table;
+    config_table.emplace_back(std::array<std::string, 7>{"Configuration ID", "  Operation", "  Grid size",
+                                                         "  Subgrid size", "  Number of channels",
+                                                         "  Number of stations", "  Hardware"});
 
     int i_configuration = 0;
     for (const auto configuration : configurations)
     {
-        std::array<std::string, 6> line;
+        std::array<std::string, 7> line;
         line[0] = std::to_string(i_configuration++);
-        line[1] = std::to_string(configuration.grid_size);
-        line[2] = std::to_string(configuration.subgrid_size);
-        line[3] = std::to_string(configuration.nchannels);
-        line[4] = std::to_string(configuration.nstations);
-        line[5] = benchmarks_common::hardware_type_string(configuration.htype);
+        line[1] = to_string(configuration.operation);
+        line[2] = std::to_string(configuration.grid_size);
+        line[3] = std::to_string(configuration.subgrid_size);
+        line[4] = std::to_string(configuration.nchannels);
+        line[5] = std::to_string(configuration.nstations);
+        line[6] = benchmarks_common::hardware_type_string(configuration.htype);
         config_table.emplace_back(line);
     }
     benchmarks_common::print_columns(config_table);
@@ -69,7 +72,10 @@ void run(const std::vector<gridding_benchmark::configuration> &configurations, c
         std::cout.flush();
 
         const auto begin = std::chrono::high_resolution_clock::now();
-        results.emplace_back(gridding_benchmark::launch_gridding(configuration));
+        const auto result = configuration.operation == gridding_benchmark::operation_type::gridding
+                                ? gridding_benchmark::launch_gridding(configuration)
+                                : gridding_benchmark::launch_degridding(configuration);
+        results.emplace_back(result);
         const auto end = std::chrono::high_resolution_clock::now();
 
         const auto time_s = std::chrono::duration_cast<std::chrono::seconds>(end - begin).count();
@@ -82,10 +88,12 @@ void run(const std::vector<gridding_benchmark::configuration> &configurations, c
     const auto bench_time_s = std::chrono::duration_cast<std::chrono::seconds>(end_bench - begin_bench).count();
     std::cout << "==> Total benchmarking time: " << bench_time_s << " seconds." << std::endl << std::endl;
 
-    std::vector<std::array<std::string, 10>> table;
+    std::vector<std::array<std::string, 12>> table;
 
-    std::array<std::string, 10> labels{
+    std::array<std::string, 12> labels{
         "  Configuration ID",
+        "  Operation",
+        "  Iterations",
         "  Grid size",
         "  Subgrid size",
         "  Number of channels",
@@ -104,16 +112,18 @@ void run(const std::vector<gridding_benchmark::configuration> &configurations, c
     {
         const auto &result = results[i];
         const auto &title = titles[i];
-        std::array<std::string, 10> row{title,
-                                       std::to_string(configurations[i].grid_size),
-                                       std::to_string(configurations[i].subgrid_size),
-                                       std::to_string(configurations[i].nchannels),
-                                       std::to_string(configurations[i].nstations),
-                                       to_result_string(result.in_transfer_time),
-                                       to_result_string(result.in_bandwidth),
-                                       to_result_string(result.compute_time),
-                                       to_result_string(result.out_transfer_time),
-                                       to_result_string(result.out_bandwidth)};
+        std::array<std::string, 12> row{title,
+                                        to_string(configurations[i].operation),
+                                        std::to_string(configurations[i].niterations),
+                                        std::to_string(configurations[i].grid_size),
+                                        std::to_string(configurations[i].subgrid_size),
+                                        std::to_string(configurations[i].nchannels),
+                                        std::to_string(configurations[i].nstations),
+                                        to_result_string(result.in_transfer_time),
+                                        to_result_string(result.in_bandwidth),
+                                        to_result_string(result.compute_time),
+                                        to_result_string(result.out_transfer_time),
+                                        to_result_string(result.out_bandwidth)};
         table.emplace_back(row);
     }
 

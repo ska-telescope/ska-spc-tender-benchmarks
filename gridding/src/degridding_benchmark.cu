@@ -264,8 +264,8 @@ namespace gridding_benchmark
         }
         cudaCheck(cudaEventSynchronize(end_in_memcpy));
 
-        float in_copy_time;
-        cudaCheck(cudaEventElapsedTime(&in_copy_time, begin_in_memcpy, end_in_memcpy));
+        float in_copy_time_ms;
+        cudaCheck(cudaEventElapsedTime(&in_copy_time_ms, begin_in_memcpy, end_in_memcpy));
 
         const auto n_baselines = (configuration.nstations * (configuration.nstations - 1)) / 2;
         const auto n_subgrids = n_baselines * configuration.ntimeslots;
@@ -288,8 +288,8 @@ namespace gridding_benchmark
         cudaCheck(cudaEventRecord(end_compute));
         cudaCheck(cudaEventSynchronize(end_compute));
 
-        float compute_time;
-        cudaCheck(cudaEventElapsedTime(&compute_time, begin_compute, end_compute));
+        float compute_time_ms;
+        cudaCheck(cudaEventElapsedTime(&compute_time_ms, begin_compute, end_compute));
 
         cudaEvent_t begin_out_memcpy;
         cudaCheck(cudaEventCreate(&begin_out_memcpy));
@@ -299,19 +299,20 @@ namespace gridding_benchmark
         cudaCheck(cudaEventRecord(begin_out_memcpy));
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
-            cudaCheck(cudaMemcpy(d_subgrids, subgrids.data(), d_subgrids_size, cudaMemcpyHostToDevice));
+            cudaCheck(cudaMemcpy(d_subgrids, subgrids.data(), d_subgrids_size, cudaMemcpyDeviceToHost));
         }
         cudaCheck(cudaEventRecord(end_out_memcpy));
+        cudaCheck(cudaEventSynchronize(end_out_memcpy));
 
-        float out_copy_time;
-        cudaCheck(cudaEventElapsedTime(&out_copy_time, begin_out_memcpy, end_out_memcpy));
+        float out_copy_time_ms;
+        cudaCheck(cudaEventElapsedTime(&out_copy_time_ms, begin_out_memcpy, end_out_memcpy));
 
         benchmark_result result;
-        result.in_transfer_time = in_copy_time / static_cast<float>(configuration.niterations);
-        result.out_transfer_time = out_copy_time / static_cast<float>(configuration.niterations);
-        result.in_bandwidth = static_cast<float>(total_in_size) / (1000.f * in_copy_time);
-        result.out_bandwidth = static_cast<float>(total_out_size) / (1000.f * out_copy_time);
-        result.compute_time = compute_time / static_cast<float>(configuration.niterations);
+        result.in_transfer_time = in_copy_time_ms * 1000.f / static_cast<float>(configuration.niterations);
+        result.out_transfer_time = out_copy_time_ms * 1000.f / static_cast<float>(configuration.niterations);
+        result.in_bandwidth = static_cast<float>(total_in_size) / (1000.f * in_copy_time_ms);
+        result.out_bandwidth = static_cast<float>(total_out_size) / (1000.f * out_copy_time_ms);
+        result.compute_time = compute_time_ms * 1000.f / static_cast<float>(configuration.niterations);
 
         return result;
     }

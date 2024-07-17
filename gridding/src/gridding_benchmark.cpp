@@ -88,7 +88,6 @@ namespace gridding_benchmark
 #pragma omp parallel for collapse(2)
 #endif
                 for (size_t y = 0; y < subgrid_size; ++y)
-                {
                     for (size_t x = 0; x < subgrid_size; ++x)
 #endif
                             {
@@ -97,38 +96,38 @@ namespace gridding_benchmark
                                 pixels.fill(0);
 
                                 // Compute l,m,n
-                                float l = compute_l(x, subgrid_size, image_size);
-                                float m = compute_m(y, subgrid_size, image_size);
-                                float n = compute_n(l, m);
+                                const float l = compute_l(x, subgrid_size, image_size);
+                                const float m = compute_m(y, subgrid_size, image_size);
+                                const float n = compute_n(l, m);
 
                                 // Iterate all timesteps
-                                for (int time = 0; time < nr_timesteps; time++)
+                                for (size_t time = 0; time < nr_timesteps; time++)
                                 {
                                     // Load UVW coordinates
-                                    float u = uvw[time_offset + time].u;
-                                    float v = uvw[time_offset + time].v;
-                                    float w = uvw[time_offset + time].w;
+                                    const float u = uvw[time_offset + time].u;
+                                    const float v = uvw[time_offset + time].v;
+                                    const float w = uvw[time_offset + time].w;
 
                                     // Compute phase index
-                                    float phase_index = u * l + v * m + w * n;
+                                    const float phase_index = u * l + v * m + w * n;
 
                                     // Compute phase offset
-                                    float phase_offset = u_offset * l + v_offset * m + w_offset * n;
+                                    const float phase_offset = u_offset * l + v_offset * m + w_offset * n;
 
                                     // Update pixel for every channel
-                                    for (int chan = 0; chan < nchannels; chan++)
+                                    for (size_t chan = 0; chan < nchannels; chan++)
                                     {
                                         // Compute phase
-                                        float phase = phase_offset - (phase_index * wavenumbers[chan]);
+                                        const float phase = phase_offset - (phase_index * wavenumbers[chan]);
 
                                         // Compute phasor
-                                        std::complex<float> phasor = {cosf(phase), sinf(phase)};
+                                        const std::complex<float> phasor = {cosf(phase), sinf(phase)};
 
                                         // Update pixel for every polarization
-                                        size_t index = (time_offset + time) * nchannels + chan;
+                                        const size_t index = (time_offset + time) * nchannels + chan;
                                         const auto *visibilities_cpx_ptr =
                                             reinterpret_cast<const std::complex<float> *>(visibilities.data() + index);
-                                        for (int pol = 0; pol < n_correlations; pol++)
+                                        for (size_t pol = 0; pol < n_correlations; pol++)
                                         {
                                             pixels[pol] += visibilities_cpx_ptr[pol] * phasor;
                                         }
@@ -136,16 +135,16 @@ namespace gridding_benchmark
                                 }     // end for time
 
                                 // Load a term for station1
-                                int station1_index = (aterm_index * nstations + station1) * subgrid_size *
-                                                         subgrid_size * n_correlations +
-                                                     y * subgrid_size * n_correlations + x * n_correlations;
+                                const size_t station1_index = (aterm_index * nstations + station1) * subgrid_size *
+                                                                  subgrid_size * n_correlations +
+                                                              y * subgrid_size * n_correlations + x * n_correlations;
                                 const std::complex<float> *aterm1_ptr =
                                     &reinterpret_cast<const std::complex<float> *>(aterms.data())[station1_index];
 
                                 // Load aterm for station2
-                                int station2_index = (aterm_index * nstations + station2) * subgrid_size *
-                                                         subgrid_size * n_correlations +
-                                                     y * subgrid_size * n_correlations + x * n_correlations;
+                                const size_t station2_index = (aterm_index * nstations + station2) * subgrid_size *
+                                                                  subgrid_size * n_correlations +
+                                                              y * subgrid_size * n_correlations + x * n_correlations;
                                 const std::complex<float> *aterm2_ptr =
                                     &reinterpret_cast<const std::complex<float> *>(aterms.data())[station2_index];
 
@@ -153,19 +152,19 @@ namespace gridding_benchmark
                                 apply_aterm_gridder(&pixels[0], aterm1_ptr, aterm2_ptr);
 
                                 // Load spheroidal
-                                float sph = spheroidal[y * subgrid_size + x];
+                                const float sph = spheroidal[y * subgrid_size + x];
 
                                 // Set subgrid value
-                                for (int pol = 0; pol < n_correlations; pol++)
+                                for (size_t pol = 0; pol < n_correlations; pol++)
                                 {
-                                    unsigned idx_subgrid = s * n_correlations * subgrid_size * subgrid_size +
-                                                           pol * subgrid_size * subgrid_size + y * subgrid_size + x;
+                                    const size_t idx_subgrid = s * n_correlations * subgrid_size * subgrid_size +
+                                                               pol * subgrid_size * subgrid_size + y * subgrid_size + x;
                                     subgrids[idx_subgrid] = pixels[pol] * sph;
                                 }
                             }
                         }
-                    }
 #ifdef ENABLE_TBB
+                    }
                 });
 #endif
         }

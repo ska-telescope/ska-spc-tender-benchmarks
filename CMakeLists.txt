@@ -31,7 +31,6 @@ endif()
 
 
 find_package(MPI REQUIRED)
-find_package(TBB REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 add_subdirectory(benchmarks-common)
