@@ -101,7 +101,7 @@ namespace fft_benchmark
             exit(-1);
         }
 
-        std::vector<fft_benchmark::hardware_type> hardware_types;
+        std::vector<benchmarks_common::hardware_type> hardware_types;
         hardware_types.reserve(hardware_types_config.size());
         for (const auto &hardware_type_config : hardware_types_config)
         {
@@ -109,15 +109,15 @@ namespace fft_benchmark
 #ifdef ENABLE_CPU
             if (hardware_type_string == "cpu")
             {
-                hardware_types.push_back(fft_benchmark::hardware_type::cpu);
-                break;
+                hardware_types.push_back(benchmarks_common::hardware_type::cpu);
+                continue;
             }
 #endif
 #ifdef ENABLE_GPU
             if (hardware_type_string == "gpu")
             {
-                hardware_types.push_back(fft_benchmark::hardware_type::gpu);
-                break;
+                hardware_types.push_back(benchmarks_common::hardware_type::gpu);
+                continue;
             }
 #endif
             std::cerr << "Invalid hardware_type token " << hardware_type_string
@@ -147,17 +147,6 @@ namespace fft_benchmark
             exit(-1);
         };
 
-        if (!yaml_config["in_place"])
-        {
-            inplace_err_func();
-        }
-        const auto in_place_string = yaml_config["in_place"].as<std::string>();
-        if (in_place_string != "true" && in_place_string != "false")
-        {
-            inplace_err_func();
-        }
-        const bool in_place = in_place_string == "true";
-
         std::vector<fft_benchmark::configuration> configurations;
         configurations.reserve(dimensions.size() * float_types.size());
         for (const auto hardware_type : hardware_types)
@@ -175,7 +164,6 @@ namespace fft_benchmark
                         configuration.ny = dimension.second;
                         configuration.niterations = niterations;
                         configuration.memorysize = memorysize;
-                        // configuration.in_place = in_place;
                         configuration.htype = hardware_type;
                         configurations.emplace_back(configuration);
                     }
