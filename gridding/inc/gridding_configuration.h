@@ -10,6 +10,7 @@ namespace gridding_benchmark
     struct configuration
     {
         benchmarks_common::hardware_type htype;
+        size_t niterations;
         size_t grid_size;
         size_t subgrid_size;
         size_t nstations;

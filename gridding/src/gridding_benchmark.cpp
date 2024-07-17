@@ -45,127 +45,130 @@ namespace gridding_benchmark
 
         const auto begin = std::chrono::high_resolution_clock::now();
         const auto subgrid_size = configuration.subgrid_size;
+        for (size_t i = 0; i < configuration.niterations; ++i)
+        {
 #if defined(ENABLE_TBB)
-        tbb::parallel_for(
-            tbb::blocked_range3d<size_t>(0, n_subgrids, 0, subgrid_size, 0, subgrid_size),
-            [&](const tbb::blocked_range3d<size_t> &range) {
-                for (auto s = range.pages().begin(); s < range.pages().end(); ++s)
+            tbb::parallel_for(
+                tbb::blocked_range3d<size_t>(0, n_subgrids, 0, subgrid_size, 0, subgrid_size),
+                [&](const tbb::blocked_range3d<size_t> &range) {
+                    for (auto s = range.pages().begin(); s < range.pages().end(); ++s)
 #else
-        for (size_t s = 0; s < n_subgrids; ++s)
+            for (size_t s = 0; s < n_subgrids; ++s)
 #endif
-                {
-                    // Load metadata
-                    const Metadata m = metadata.data()[s];
-                    const int time_offset = (m.baseline_offset - baseline_offset_1) + m.time_offset;
-                    const int nr_timesteps = m.nr_timesteps;
-                    const int aterm_index = m.aterm_index;
-                    const int station1 = m.baseline.station1;
-                    const int station2 = m.baseline.station2;
-                    const int x_coordinate = m.coordinate.x;
-                    const int y_coordinate = m.coordinate.y;
-                    const float w_offset_in_lambda = w_step_in_lambda * (m.coordinate.z + 0.5);
-
-                    const auto grid_size = configuration.grid_size;
-                    const auto nchannels = configuration.nchannels;
-                    const auto nstations = configuration.nstations;
-
-                    const auto half_subgrid_size = static_cast<float>(subgrid_size) * 0.5F;
-                    const auto half_grid_size = static_cast<float>(grid_size) * 0.5F;
-                    // Compute u and v offset in wavelenghts
-                    const float u_offset =
-                        (x_coordinate + half_subgrid_size - half_grid_size) * (2.F * pi() / image_size);
-                    const float v_offset =
-                        (y_coordinate + half_subgrid_size - half_grid_size) * (2.F * pi() / image_size);
-                    const float w_offset = 2 * pi() * w_offset_in_lambda;
-#ifdef ENABLE_TBB
-                    for (auto y = range.pages().begin(); y < range.pages().end(); ++y)
                     {
-                        for (auto x = range.pages().begin(); x < range.pages().end(); ++x)
+                        // Load metadata
+                        const Metadata m = metadata.data()[s];
+                        const int time_offset = (m.baseline_offset - baseline_offset_1) + m.time_offset;
+                        const int nr_timesteps = m.nr_timesteps;
+                        const int aterm_index = m.aterm_index;
+                        const int station1 = m.baseline.station1;
+                        const int station2 = m.baseline.station2;
+                        const int x_coordinate = m.coordinate.x;
+                        const int y_coordinate = m.coordinate.y;
+                        const float w_offset_in_lambda = w_step_in_lambda * (m.coordinate.z + 0.5);
+
+                        const auto grid_size = configuration.grid_size;
+                        const auto nchannels = configuration.nchannels;
+                        const auto nstations = configuration.nstations;
+
+                        const auto half_subgrid_size = static_cast<float>(subgrid_size) * 0.5F;
+                        const auto half_grid_size = static_cast<float>(grid_size) * 0.5F;
+                        // Compute u and v offset in wavelenghts
+                        const float u_offset =
+                            (x_coordinate + half_subgrid_size - half_grid_size) * (2.F * pi() / image_size);
+                        const float v_offset =
+                            (y_coordinate + half_subgrid_size - half_grid_size) * (2.F * pi() / image_size);
+                        const float w_offset = 2 * pi() * w_offset_in_lambda;
+#ifdef ENABLE_TBB
+                        for (auto y = range.pages().begin(); y < range.pages().end(); ++y)
+                        {
+                            for (auto x = range.pages().begin(); x < range.pages().end(); ++x)
 #else
 #ifdef ENABLE_OMP
 #pragma omp parallel for collapse(2)
 #endif
-            for (size_t y = 0; y < subgrid_size; ++y)
-            {
-                for (size_t x = 0; x < subgrid_size; ++x)
+                for (size_t y = 0; y < subgrid_size; ++y)
+                {
+                    for (size_t x = 0; x < subgrid_size; ++x)
 #endif
-                        {
-                            // Initialize pixel for every polarization
-                            std::array<std::complex<float>, n_correlations> pixels;
-                            pixels.fill(0);
-
-                            // Compute l,m,n
-                            float l = compute_l(x, subgrid_size, image_size);
-                            float m = compute_m(y, subgrid_size, image_size);
-                            float n = compute_n(l, m);
-
-                            // Iterate all timesteps
-                            for (int time = 0; time < nr_timesteps; time++)
                             {
-                                // Load UVW coordinates
-                                float u = uvw[time_offset + time].u;
-                                float v = uvw[time_offset + time].v;
-                                float w = uvw[time_offset + time].w;
+                                // Initialize pixel for every polarization
+                                std::array<std::complex<float>, n_correlations> pixels;
+                                pixels.fill(0);
 
-                                // Compute phase index
-                                float phase_index = u * l + v * m + w * n;
+                                // Compute l,m,n
+                                float l = compute_l(x, subgrid_size, image_size);
+                                float m = compute_m(y, subgrid_size, image_size);
+                                float n = compute_n(l, m);
 
-                                // Compute phase offset
-                                float phase_offset = u_offset * l + v_offset * m + w_offset * n;
-
-                                // Update pixel for every channel
-                                for (int chan = 0; chan < nchannels; chan++)
+                                // Iterate all timesteps
+                                for (int time = 0; time < nr_timesteps; time++)
                                 {
-                                    // Compute phase
-                                    float phase = phase_offset - (phase_index * wavenumbers[chan]);
+                                    // Load UVW coordinates
+                                    float u = uvw[time_offset + time].u;
+                                    float v = uvw[time_offset + time].v;
+                                    float w = uvw[time_offset + time].w;
 
-                                    // Compute phasor
-                                    std::complex<float> phasor = {cosf(phase), sinf(phase)};
+                                    // Compute phase index
+                                    float phase_index = u * l + v * m + w * n;
 
-                                    // Update pixel for every polarization
-                                    size_t index = (time_offset + time) * nchannels + chan;
-                                    const auto *visibilities_cpx_ptr =
-                                        reinterpret_cast<const std::complex<float> *>(visibilities.data() + index);
-                                    for (int pol = 0; pol < n_correlations; pol++)
+                                    // Compute phase offset
+                                    float phase_offset = u_offset * l + v_offset * m + w_offset * n;
+
+                                    // Update pixel for every channel
+                                    for (int chan = 0; chan < nchannels; chan++)
                                     {
-                                        pixels[pol] += visibilities_cpx_ptr[pol] * phasor;
-                                    }
-                                } // end for chan
-                            }     // end for time
+                                        // Compute phase
+                                        float phase = phase_offset - (phase_index * wavenumbers[chan]);
 
-                            // Load a term for station1
-                            int station1_index =
-                                (aterm_index * nstations + station1) * subgrid_size * subgrid_size * n_correlations +
-                                y * subgrid_size * n_correlations + x * n_correlations;
-                            const std::complex<float> *aterm1_ptr =
-                                &reinterpret_cast<const std::complex<float> *>(aterms.data())[station1_index];
+                                        // Compute phasor
+                                        std::complex<float> phasor = {cosf(phase), sinf(phase)};
 
-                            // Load aterm for station2
-                            int station2_index =
-                                (aterm_index * nstations + station2) * subgrid_size * subgrid_size * n_correlations +
-                                y * subgrid_size * n_correlations + x * n_correlations;
-                            const std::complex<float> *aterm2_ptr =
-                                &reinterpret_cast<const std::complex<float> *>(aterms.data())[station2_index];
+                                        // Update pixel for every polarization
+                                        size_t index = (time_offset + time) * nchannels + chan;
+                                        const auto *visibilities_cpx_ptr =
+                                            reinterpret_cast<const std::complex<float> *>(visibilities.data() + index);
+                                        for (int pol = 0; pol < n_correlations; pol++)
+                                        {
+                                            pixels[pol] += visibilities_cpx_ptr[pol] * phasor;
+                                        }
+                                    } // end for chan
+                                }     // end for time
 
-                            // Apply aterm
-                            apply_aterm_gridder(&pixels[0], aterm1_ptr, aterm2_ptr);
+                                // Load a term for station1
+                                int station1_index = (aterm_index * nstations + station1) * subgrid_size *
+                                                         subgrid_size * n_correlations +
+                                                     y * subgrid_size * n_correlations + x * n_correlations;
+                                const std::complex<float> *aterm1_ptr =
+                                    &reinterpret_cast<const std::complex<float> *>(aterms.data())[station1_index];
 
-                            // Load spheroidal
-                            float sph = spheroidal[y * subgrid_size + x];
+                                // Load aterm for station2
+                                int station2_index = (aterm_index * nstations + station2) * subgrid_size *
+                                                         subgrid_size * n_correlations +
+                                                     y * subgrid_size * n_correlations + x * n_correlations;
+                                const std::complex<float> *aterm2_ptr =
+                                    &reinterpret_cast<const std::complex<float> *>(aterms.data())[station2_index];
 
-                            // Set subgrid value
-                            for (int pol = 0; pol < n_correlations; pol++)
-                            {
-                                unsigned idx_subgrid = s * n_correlations * subgrid_size * subgrid_size +
-                                                       pol * subgrid_size * subgrid_size + y * subgrid_size + x;
-                                subgrids[idx_subgrid] = pixels[pol] * sph;
+                                // Apply aterm
+                                apply_aterm_gridder(&pixels[0], aterm1_ptr, aterm2_ptr);
+
+                                // Load spheroidal
+                                float sph = spheroidal[y * subgrid_size + x];
+
+                                // Set subgrid value
+                                for (int pol = 0; pol < n_correlations; pol++)
+                                {
+                                    unsigned idx_subgrid = s * n_correlations * subgrid_size * subgrid_size +
+                                                           pol * subgrid_size * subgrid_size + y * subgrid_size + x;
+                                    subgrids[idx_subgrid] = pixels[pol] * sph;
+                                }
                             }
                         }
                     }
-                }
 #ifdef ENABLE_TBB
-            });
+                });
 #endif
+        }
         const auto end = std::chrono::high_resolution_clock::now();
         const auto compute_us = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count() / 1000.;
 
@@ -175,7 +178,7 @@ namespace gridding_benchmark
 #endif
 
         benchmark_result result;
-        result.compute_time = compute_us;
+        result.compute_time = compute_us / static_cast<double>(configuration.niterations);
         return result;
     }
 
@@ -212,15 +215,15 @@ namespace gridding_benchmark
 
         if (configuration.htype == benchmarks_common::hardware_type::cpu)
         {
-            return gridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(configuration, uvw, visibilities, baselines,
-                                                                           aterms, frequencies, wavenumbers, spheroidal,
-                                                                           subgrids, metadata);
+            return gridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
+                configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
+                metadata);
         }
         else if (configuration.htype == benchmarks_common::hardware_type::gpu)
         {
-            return gridding_benchmark_launcher<benchmarks_common::hardware_type::gpu>::launch(configuration, uvw, visibilities, baselines,
-                                                                           aterms, frequencies, wavenumbers, spheroidal,
-                                                                           subgrids, metadata);
+            return gridding_benchmark_launcher<benchmarks_common::hardware_type::gpu>::launch(
+                configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
+                metadata);
         }
         return {};
     }

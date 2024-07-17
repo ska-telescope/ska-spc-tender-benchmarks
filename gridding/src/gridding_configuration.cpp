@@ -50,7 +50,7 @@ namespace gridding_benchmark
 
         if (!yaml_config["grid_size"])
         {
-            std::cerr << "Invalid nitgrid_sizerations section. Should look like this:" << std::endl;
+            std::cerr << "Invalid grid_size section. Should look like this:" << std::endl;
             std::cerr << "nbatches: <grid size>" << std::endl;
             exit(-1);
         }
@@ -63,6 +63,14 @@ namespace gridding_benchmark
             exit(-1);
         }
         const size_t subgrid_size = yaml_config["subgrid_size"].as<size_t>();
+
+        if (!yaml_config["niterations"])
+        {
+            std::cerr << "Invalid niterations section. Should look like this:" << std::endl;
+            std::cerr << "nbatches: <niterations>" << std::endl;
+            exit(-1);
+        }
+        const size_t niterations = yaml_config["niterations"].as<size_t>();
 
         if (!yaml_config["nstations"])
         {
@@ -104,6 +112,7 @@ namespace gridding_benchmark
             configuration.htype = hardware_type;
             configuration.grid_size = grid_size;
             configuration.subgrid_size = subgrid_size;
+            configuration.niterations = niterations;
             configuration.nstations = nstations;
             configuration.nchannels = nchannels;
             configuration.ntimeslots = ntimeslots;

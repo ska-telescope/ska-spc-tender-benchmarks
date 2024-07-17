@@ -1,4 +1,5 @@
 grid_size: 1024
+niterations: 100
 nstations: 2
 ntimeslots: 2
 ntimesteps_per_subgrid: 128

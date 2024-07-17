@@ -4,7 +4,7 @@
 #include "math.hpp"
 #include "util.cuh"
 
-//#define ALIGN(N, A) (((N) + (A)-1) / (A) * (A))
+// #define ALIGN(N, A) (((N) + (A)-1) / (A) * (A))
 #define NUM_THREADS 128
 #define UNROLL_PIXELS 4
 #define BATCH_SIZE 128
@@ -295,13 +295,16 @@ namespace gridding_benchmark
         cudaCheck(cudaEventCreate(&end_in_memcpy));
 
         cudaCheck(cudaEventRecord(begin_in_memcpy));
-        cudaCheck(cudaMemcpy(d_uvw, uvw.data(), d_uvw_size, cudaMemcpyHostToDevice));
-        cudaCheck(cudaMemcpy(d_wavenumbers, wavenumbers.data(), d_wavenumbers_size, cudaMemcpyHostToDevice));
-        cudaCheck(cudaMemcpy(d_visibilities, visibilities.data(), d_visibilities_size, cudaMemcpyHostToDevice));
-        cudaCheck(cudaMemcpy(d_spheroidal, spheroidal.data(), d_spheroidal_size, cudaMemcpyHostToDevice));
-        cudaCheck(cudaMemcpy(d_aterms, aterms.data(), d_aterms_size, cudaMemcpyHostToDevice));
-        cudaCheck(cudaMemcpy(d_metadata, metadata.data(), d_metadata_size, cudaMemcpyHostToDevice));
-        cudaCheck(cudaEventRecord(end_in_memcpy));
+        for (size_t i = 0; i < configuration.niterations; ++i)
+        {
+            cudaCheck(cudaMemcpy(d_uvw, uvw.data(), d_uvw_size, cudaMemcpyHostToDevice));
+            cudaCheck(cudaMemcpy(d_wavenumbers, wavenumbers.data(), d_wavenumbers_size, cudaMemcpyHostToDevice));
+            cudaCheck(cudaMemcpy(d_visibilities, visibilities.data(), d_visibilities_size, cudaMemcpyHostToDevice));
+            cudaCheck(cudaMemcpy(d_spheroidal, spheroidal.data(), d_spheroidal_size, cudaMemcpyHostToDevice));
+            cudaCheck(cudaMemcpy(d_aterms, aterms.data(), d_aterms_size, cudaMemcpyHostToDevice));
+            cudaCheck(cudaMemcpy(d_metadata, metadata.data(), d_metadata_size, cudaMemcpyHostToDevice));
+            cudaCheck(cudaEventRecord(end_in_memcpy));
+        }
         cudaCheck(cudaEventSynchronize(end_in_memcpy));
 
         float in_copy_time;
@@ -318,10 +321,13 @@ namespace gridding_benchmark
         cudaCheck(cudaEventCreate(&end_compute));
 
         cudaCheck(cudaEventRecord(begin_compute));
-        kernel_gridder_v7<<<n_subgrids, NUM_THREADS>>>(configuration.grid_size, configuration.subgrid_size, image_size,
-                                                       w_step_in_lambda, configuration.nchannels,
-                                                       configuration.nstations, d_uvw, d_wavenumbers, d_visibilities,
-                                                       d_spheroidal, d_aterms, d_metadata, d_subgrids);
+        for (size_t i = 0; i < configuration.niterations; ++i)
+        {
+            kernel_gridder_v7<<<n_subgrids, NUM_THREADS>>>(
+                configuration.grid_size, configuration.subgrid_size, image_size, w_step_in_lambda,
+                configuration.nchannels, configuration.nstations, d_uvw, d_wavenumbers, d_visibilities, d_spheroidal,
+                d_aterms, d_metadata, d_subgrids);
+        }
         cudaCheck(cudaEventRecord(end_compute));
         cudaCheck(cudaEventSynchronize(end_compute));
 
@@ -334,18 +340,21 @@ namespace gridding_benchmark
         cudaCheck(cudaEventCreate(&end_out_memcpy));
 
         cudaCheck(cudaEventRecord(begin_out_memcpy));
-        cudaCheck(cudaMemcpy(d_subgrids, subgrids.data(), d_subgrids_size, cudaMemcpyHostToDevice));
+        for (size_t i = 0; i < configuration.niterations; ++i)
+        {
+            cudaCheck(cudaMemcpy(d_subgrids, subgrids.data(), d_subgrids_size, cudaMemcpyHostToDevice));
+        }
         cudaCheck(cudaEventRecord(end_out_memcpy));
 
         float out_copy_time;
         cudaCheck(cudaEventElapsedTime(&out_copy_time, begin_out_memcpy, end_out_memcpy));
 
         benchmark_result result;
-        result.in_transfer_time = in_copy_time;
-        result.out_transfer_time = out_copy_time;
+        result.in_transfer_time = in_copy_time / static_cast<float>(configuration.niterations);
+        result.out_transfer_time = out_copy_time / static_cast<float>(configuration.niterations);
         result.in_bandwidth = static_cast<float>(total_in_size) / (1000.f * in_copy_time);
         result.out_bandwidth = static_cast<float>(total_out_size) / (1000.f * out_copy_time);
-        result.compute_time = compute_time;
+        result.compute_time = compute_time / static_cast<float>(configuration.niterations);
 
         return result;
     }
