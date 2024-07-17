@@ -5,23 +5,23 @@ if(VTUNE_PROFILE)
   target_link_libraries(gridding-benchmarks PRIVATE ittnotify)
 endif()
 
-if(${PARALLELIZATION_LIBRARY} STREQUAL "TBB")
+if(PARALLELIZATION_LIBRARY STREQUAL "TBB")
   find_package(TBB REQUIRED)
   target_link_libraries(gridding-benchmarks PUBLIC TBB::tbb)
   target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_TBB)
 endif()
 
-if(${PARALLELIZATION_LIBRARY} STREQUAL "OMP")
+if(PARALLELIZATION_LIBRARY STREQUAL "OMP")
   find_package(OpenMP REQUIRED)
   target_link_libraries(gridding-benchmarks PUBLIC OpenMP::OpenMP_CXX)
   target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_OMP)
 endif()
 
 # Hardware options
-if(${ENABLE_CPU})
+if(ENABLE_CPU)
   target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_CPU=1)
 endif()
-if(${ENABLE_GPU})
+if(ENABLE_GPU)
   target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_GPU=1)
 endif()
 
@@ -47,5 +47,4 @@ target_sources(
 
 target_link_libraries(gridding-benchmarks PUBLIC yaml-cpp)
 target_link_libraries(gridding-benchmarks PUBLIC MPI::MPI_CXX)
-target_link_libraries(gridding-benchmarks PUBLIC TBB::tbb)
 target_link_libraries(gridding-benchmarks PUBLIC benchmarks-common)
