@@ -14,22 +14,22 @@ namespace gridding_benchmark
         size_t n_baselines = uvw.get_y_dim();
         size_t ntimesteps = uvw.get_x_dim();
 
-        for (unsigned bl = 0; bl < n_baselines; bl++)
+        for (size_t bl = 0; bl < n_baselines; bl++)
         {
             const auto half_grid_size = 0.5F * static_cast<float>(grid_size);
 
             // Get random radius
-            float radius_u = half_grid_size + rand_normalized_float() * half_grid_size;
-            float radius_v = half_grid_size + rand_normalized_float() * half_grid_size;
+            const float radius_u = half_grid_size + rand_normalized_float() * half_grid_size;
+            const float radius_v = half_grid_size + rand_normalized_float() * half_grid_size;
 
             // Evaluate elipsoid
             const auto angle_step = 1.F / static_cast<float>(ntimesteps);
             for (size_t itime = 0; itime < ntimesteps; itime++)
             {
-                float angle = (static_cast<float>(itime) + 0.5) * angle_step;
-                float u = radius_u * std::cos(angle * M_PI);
-                float v = radius_v * std::sin(angle * M_PI);
-                float w = 0;
+                const float angle = (static_cast<float>(itime) + 0.5) * angle_step;
+                const float u = radius_u * std::cos(angle * M_PI);
+                const float v = radius_v * std::sin(angle * M_PI);
+                const float w = 0;
                 uvw(bl, itime) = {u, v, w};
             }
         }
@@ -37,23 +37,23 @@ namespace gridding_benchmark
 
     void initialize_frequencies(Array1D<float> &frequencies)
     {
-        unsigned int nr_channels = frequencies.get_x_dim();
+        const size_t nr_channels = frequencies.get_x_dim();
 
-        const unsigned int start_frequency = 150e6;
+        const size_t start_frequency = 150e6;
         const float frequency_increment = 0.7e6;
-        for (unsigned i = 0; i < nr_channels; i++)
+        for (size_t i = 0; i < nr_channels; i++)
         {
-            double frequency = start_frequency + frequency_increment * i;
+            const double frequency = start_frequency + frequency_increment * i;
             frequencies(i) = frequency;
         }
     }
 
     void initialize_wavenumbers(const Array1D<float> &frequencies, Array1D<float> &wavenumbers)
     {
-        unsigned int nr_channels = frequencies.get_x_dim();
+        const size_t nr_channels = frequencies.get_x_dim();
 
         const double speed_of_light = 299792458.0;
-        for (unsigned i = 0; i < nr_channels; i++)
+        for (size_t i = 0; i < nr_channels; i++)
         {
             wavenumbers(i) = 2 * M_PI * frequencies(i) / speed_of_light;
         }
@@ -63,26 +63,27 @@ namespace gridding_benchmark
                                  const Array2D<UVWCoordinate<float>> &uvw,
                                  Array3D<Visibility<std::complex<float>>> &visibilities)
     {
-        unsigned int nr_baselines = visibilities.get_z_dim();
-        unsigned int nr_timesteps = visibilities.get_y_dim();
-        unsigned int nr_channels = visibilities.get_x_dim();
+        const size_t nr_baselines = visibilities.get_z_dim();
+        const size_t nr_timesteps = visibilities.get_y_dim();
+        const size_t nr_channels = visibilities.get_x_dim();
 
-        float x_offset = 0.6 * grid_size;
-        float y_offset = 0.7 * grid_size;
-        float amplitude = 1.0f;
-        float l = x_offset * image_size / grid_size;
-        float m = y_offset * image_size / grid_size;
+        const float x_offset = 0.6 * grid_size;
+        const float y_offset = 0.7 * grid_size;
+        const float amplitude = 1.0f;
+        const float l = x_offset * image_size / grid_size;
+        const float m = y_offset * image_size / grid_size;
 
-        for (unsigned bl = 0; bl < nr_baselines; bl++)
+        for (size_t bl = 0; bl < nr_baselines; bl++)
         {
-            for (unsigned time = 0; time < nr_timesteps; time++)
+            for (size_t time = 0; time < nr_timesteps; time++)
             {
-                for (unsigned chan = 0; chan < nr_channels; chan++)
+                for (size_t chan = 0; chan < nr_channels; chan++)
                 {
                     const double speed_of_light = 299792458.0;
-                    float u = (frequencies(chan) / speed_of_light) * uvw(bl, time).u;
-                    float v = (frequencies(chan) / speed_of_light) * uvw(bl, time).v;
-                    std::complex<float> value = amplitude * exp(std::complex<float>(0, -2 * M_PI * (u * l + v * m)));
+                    const float u = (frequencies(chan) / speed_of_light) * uvw(bl, time).u;
+                    const float v = (frequencies(chan) / speed_of_light) * uvw(bl, time).v;
+                    const std::complex<float> value =
+                        amplitude * exp(std::complex<float>(0, -2 * M_PI * (u * l + v * m)));
                     visibilities(bl, time, chan).xx = value * 1.01f;
                     visibilities(bl, time, chan).xy = value * 1.02f;
                     visibilities(bl, time, chan).yx = value * 1.03f;
@@ -94,7 +95,7 @@ namespace gridding_benchmark
 
     void initialize_baselines(unsigned int nr_stations, Array1D<Baseline> &baselines)
     {
-        unsigned int nr_baselines = baselines.get_x_dim();
+        const size_t nr_baselines = baselines.get_x_dim();
 
         unsigned bl = 0;
         for (unsigned station1 = 0; station1 < nr_stations; station1++)
@@ -113,7 +114,7 @@ namespace gridding_benchmark
 
     void initialize_spheroidal(Array2D<float> &spheroidal)
     {
-        unsigned int subgrid_size = spheroidal.get_x_dim();
+        const size_t subgrid_size = spheroidal.get_x_dim();
 
         for (unsigned y = 0; y < subgrid_size; y++)
         {
@@ -128,9 +129,9 @@ namespace gridding_benchmark
 
     void initialize_aterms(const Array2D<float> &spheroidal, Array4D<Matrix2x2<std::complex<float>>> &aterms)
     {
-        unsigned int nr_timeslots = aterms.get_w_dim();
-        unsigned int nr_stations = aterms.get_z_dim();
-        unsigned int subgrid_size = aterms.get_y_dim();
+        const size_t nr_timeslots = aterms.get_w_dim();
+        const size_t nr_stations = aterms.get_z_dim();
+        const size_t subgrid_size = aterms.get_y_dim();
 
         for (unsigned ts = 0; ts < nr_timeslots; ts++)
         {
@@ -140,8 +141,8 @@ namespace gridding_benchmark
                 {
                     for (unsigned x = 0; x < subgrid_size; x++)
                     {
-                        float scale = 0.8 + ((double)rand() / (double)(RAND_MAX) * 0.4);
-                        float value = spheroidal(y, x) * scale;
+                        const float scale = 0.8 + ((double)rand() / (double)(RAND_MAX) * 0.4);
+                        const float value = spheroidal(y, x) * scale;
                         Matrix2x2<std::complex<float>> aterm;
                         aterm.xx = std::complex<float>(value + 0.1, -0.1);
                         aterm.xy = std::complex<float>(value - 0.2, 0.1);
@@ -157,24 +158,24 @@ namespace gridding_benchmark
     void initialize_metadata(unsigned int grid_size, unsigned int nr_timeslots, unsigned int nr_timesteps_subgrid,
                              const Array1D<Baseline> &baselines, Array1D<Metadata> &metadata)
     {
-        unsigned int nr_baselines = baselines.get_x_dim();
+        const size_t nr_baselines = baselines.get_x_dim();
 
         for (unsigned int bl = 0; bl < nr_baselines; bl++)
         {
             for (unsigned int ts = 0; ts < nr_timeslots; ts++)
             {
                 // Metadata settings
-                int baseline_offset = 0;
-                int time_offset = bl * nr_timeslots * nr_timesteps_subgrid + ts * nr_timesteps_subgrid;
-                int aterm_index = 0; // use the same aterm for every timeslot
-                Baseline baseline = baselines(bl);
-                int x = (double)rand() / (double)(RAND_MAX)*grid_size;
-                int y = (double)rand() / (double)(RAND_MAX)*grid_size;
-                Coordinate coordinate = {x, y};
+                const int baseline_offset = 0;
+                const int time_offset = bl * nr_timeslots * nr_timesteps_subgrid + ts * nr_timesteps_subgrid;
+                const int aterm_index = 0; // use the same aterm for every timeslot
+                const Baseline baseline = baselines(bl);
+                const int x = (double)rand() / (double)(RAND_MAX)*grid_size;
+                const int y = (double)rand() / (double)(RAND_MAX)*grid_size;
+                const Coordinate coordinate = {x, y};
 
                 // Set metadata for current subgrid
-                Metadata m = {baseline_offset, time_offset, (int)nr_timesteps_subgrid,
-                              aterm_index,     baseline,    coordinate};
+                const Metadata m = {baseline_offset, time_offset, (int)nr_timesteps_subgrid,
+                                    aterm_index,     baseline,    coordinate};
                 metadata(bl * nr_timeslots + ts) = m;
             }
         }
@@ -182,9 +183,9 @@ namespace gridding_benchmark
 
     void initialize_subgrids(Array4D<std::complex<float>> &subgrids)
     {
-        unsigned int nr_subgrids = subgrids.get_w_dim();
-        unsigned int nr_correlations = subgrids.get_z_dim();
-        unsigned int subgrid_size = subgrids.get_y_dim();
+        const size_t nr_subgrids = subgrids.get_w_dim();
+        const size_t nr_correlations = subgrids.get_z_dim();
+        const size_t subgrid_size = subgrids.get_y_dim();
 
         // Initialize subgrids
         for (unsigned s = 0; s < nr_subgrids; s++)
@@ -195,7 +196,7 @@ namespace gridding_benchmark
                 {
                     for (unsigned x = 0; x < subgrid_size; x++)
                     {
-                        std::complex<float> pixel_value(
+                        const std::complex<float> pixel_value(
                             ((y * subgrid_size + x + 1) / ((float)100 * subgrid_size * subgrid_size)), (c / 10.0f));
                         subgrids(s, c, y, x) = pixel_value;
                     }
@@ -207,7 +208,7 @@ namespace gridding_benchmark
     void initialize_uvw_offsets(unsigned int subgrid_size, unsigned int grid_size, float image_size, float w_step,
                                 const Array1D<Metadata> &metadata, Array2D<float> &uvw_offsets)
     {
-        unsigned int nr_subgrids = metadata.get_x_dim();
+        const size_t nr_subgrids = metadata.get_x_dim();
 
         for (unsigned int i = 0; i < nr_subgrids; i++)
         {
@@ -223,7 +224,7 @@ namespace gridding_benchmark
 
     void initialize_lmn(float image_size, Array3D<float> &lmn)
     {
-        unsigned int height = lmn.get_z_dim();
+        size_t height = lmn.get_z_dim();
 
 #if defined(DEBUG)
         unsigned int width = lmn.get_y_dim();
@@ -231,15 +232,15 @@ namespace gridding_benchmark
         assert(lmn.get_x_dim() == 3);
 #endif
 
-        unsigned int subgrid_size = height;
+        const auto subgrid_size = height;
 
         for (unsigned y = 0; y < subgrid_size; y++)
         {
             for (unsigned x = 0; x < subgrid_size; x++)
             {
-                float l = compute_l(x, subgrid_size, image_size);
-                float m = compute_m(y, subgrid_size, image_size);
-                float n = compute_n(l, m);
+                const float l = compute_l(x, subgrid_size, image_size);
+                const float m = compute_m(y, subgrid_size, image_size);
+                const float n = compute_n(l, m);
                 lmn(y, x, 0) = l;
                 lmn(y, x, 1) = m;
                 lmn(y, x, 2) = n;

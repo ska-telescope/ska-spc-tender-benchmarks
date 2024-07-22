@@ -1,4 +1,6 @@
 grid_size: 1024
+operation_types: [gridding, degridding]
+niterations: 100
 nstations: 2
 ntimeslots: 2
 ntimesteps_per_subgrid: 128
