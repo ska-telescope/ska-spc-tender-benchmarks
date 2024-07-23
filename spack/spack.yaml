@@ -1,7 +1,7 @@
 spack:
   specs:
-  - heffte+fftw+cuda%gcc@11 ^cuda%gcc@11 ^fftw openmp=true ^openmpi
-  - yaml-cpp
+  - heffte+fftw+cuda%gcc@11 ^fftw openmp=true ^openmpi
+  - yaml-cpp%gcc@11
   - intel-oneapi-tbb
   view: true
   concretizer:

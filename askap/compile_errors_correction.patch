@@ -1,0 +1,61 @@
+diff --git a/current/tConvolveACC/Benchmark.cc b/current/tConvolveACC/Benchmark.cc
+index b0f6d7f..4329575 100644
+--- a/current/tConvolveACC/Benchmark.cc
++++ b/current/tConvolveACC/Benchmark.cc
+@@ -465,10 +465,12 @@ void Benchmark::gridKernelACC(const std::vector<Value>& C,
+             for (suppu = 0; suppu < mySize; suppu++) {
+                 Real *gptr_re = (Real *)&d_grid[gind+suppv*gSize+suppu];
+                 const std::complex<Real> cval = d_data[dind] * d_C[cind+suppv*mySize+suppu];
++                const auto real = cval.real();
++                const auto imag = cval.imag();
+                 #pragma acc atomic update
+-                gptr_re[0] = gptr_re[0] + cval.real();
++                gptr_re[0] += real;
+                 #pragma acc atomic update
+-                gptr_re[1] = gptr_re[1] + cval.imag();
++                gptr_re[1] = imag;
+             }
+         }
+ 
+diff --git a/current/tConvolveMPI/Makefile b/current/tConvolveMPI/Makefile
+index 67e650d..9ff5be8 100644
+--- a/current/tConvolveMPI/Makefile
++++ b/current/tConvolveMPI/Makefile
+@@ -21,9 +21,9 @@
+ # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ 
+ # standard MPI c++ compiler
+-#CXX=mpicxx
++CXX=mpicxx
+ # cray compiler (e.g. Galaxy)
+-CXX=CC
++#CXX=CC
+ CFLAGS=-O3 -fstrict-aliasing -fcx-limited-range -Wall -Wextra
+ LIBS=
+ 
+diff --git a/current/tMajorACC/Makefile b/current/tMajorACC/Makefile
+index 7d5d7a7..6a0e9eb 100644
+--- a/current/tMajorACC/Makefile
++++ b/current/tMajorACC/Makefile
+@@ -41,7 +41,7 @@ else
+ endif
+ 
+ CFLAGS=-fast -O3 $(CFLAGS_EXTRA)
+-LDFLAGS=-L$(FFTW_LIB) -lfftw3f $(LDFLAGS_EXTRA)
++LDFLAGS=-lfftw3f $(LDFLAGS_EXTRA)
+ 
+ all:		tMajorACC
+ 
+diff --git a/current/tMajorACC/tMajorACC.cc b/current/tMajorACC/tMajorACC.cc
+index cdf0702..5f7454d 100644
+--- a/current/tMajorACC/tMajorACC.cc
++++ b/current/tMajorACC/tMajorACC.cc
+@@ -166,7 +166,7 @@ void gridKernelACC(const std::vector<std::complex<float> >& data, const int supp
+     //  - letting the compiler choose using tile(*,*,*) should work but isn't. Will be fixed in the PGI release after
+     //    next (currently using pgc++ 18.3-0).
+     // wait(1): wait until async(1) is finished...
+-    #pragma acc parallel loop tile(77,6,3) \
++    #pragma acc parallel loop \
+             present(d_grid[0:gSize*gSize],d_data[0:d_size],d_C[0:c_size], \
+                     d_cOffset[0:d_size],d_iu[0:d_size],d_iv[0:d_size]) wait(1)
+     for (int dind = 0; dind < d_size; ++dind) {
