@@ -2,9 +2,11 @@
 #include "gridding_configuration.h"
 #include "gridding_initialization.h"
 #include "math.hpp"
+#include "types.hpp"
 
 #include <chrono>
 #include <complex>
+#include <vector>
 #ifdef VTUNE_PROFILE
 #include <ittnotify.h>
 #endif
@@ -15,9 +17,20 @@
 #include <tbb/blocked_range3d.h>
 #include <tbb/parallel_for.h>
 #endif
+#ifdef ENABLE_SYCL
+#include <CL/sycl.hpp>
+#endif
 
 namespace gridding_benchmark
 {
+#ifdef ENABLE_SYCL
+    template <typename T>
+    auto make_buffer(T &vector)
+    {
+        return sycl::buffer<typeof(vector[0])>(vector.data(), vector.size());
+    }
+#endif
+
     template <>
     benchmark_result gridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
         const gridding_benchmark::configuration &configuration, Array2D<UVWCoordinate<float>> &uvw,
@@ -43,6 +56,24 @@ namespace gridding_benchmark
         __itt_task_begin(domain, __itt_null, __itt_null, handle_main);
 #endif
 
+#if defined(ENABLE_SYCL)
+        sycl::queue queue;
+
+    std::cout << "Using "
+        << queue.get_device().get_info<sycl::info::device::name>()
+        << std::endl;
+
+        auto uvw_buffer = make_buffer(uvw);
+        auto visibilities_buffer = make_buffer(visibilities);
+        auto baselines_buffer = make_buffer(baselines);
+        auto aterms_buffer = make_buffer(aterms);
+        auto frequencies_buffer = make_buffer(frequencies);
+        auto wavenumbers_buffer = make_buffer(wavenumbers);
+        auto spheroidal_buffer = make_buffer(spheroidal);
+        auto subgrids_buffer = make_buffer(subgrids);
+        auto metadata_buffer = make_buffer(metadata);
+#endif
+
         const auto begin = std::chrono::high_resolution_clock::now();
         const auto subgrid_size = configuration.subgrid_size;
         for (size_t i = 0; i < configuration.niterations; ++i)
@@ -52,12 +83,29 @@ namespace gridding_benchmark
                 tbb::blocked_range3d<size_t>(0, n_subgrids, 0, subgrid_size, 0, subgrid_size),
                 [&](const tbb::blocked_range3d<size_t> &range) {
                     for (auto s = range.pages().begin(); s < range.pages().end(); ++s)
+#elif defined(ENABLE_SYCL)
+            queue.submit([&](sycl::handler &h) {
+                sycl::accessor uvw(uvw_buffer, h, sycl::read_only);
+                sycl::accessor visibilities(visibilities_buffer, h, sycl::read_only);
+                sycl::accessor baselines(baselines_buffer, h, sycl::read_only);
+                sycl::accessor aterms(aterms_buffer, h, sycl::read_only);
+                sycl::accessor frequencies(frequencies_buffer, h, sycl::read_only);
+                sycl::accessor wavenumbers(wavenumbers_buffer, h, sycl::read_only);
+                sycl::accessor spheroidal(spheroidal_buffer, h, sycl::read_only);
+                sycl::accessor subgrids(subgrids_buffer, h, sycl::read_write);
+                sycl::accessor metadata(metadata_buffer, h, sycl::read_only);
+
+                sycl::range<3> range(n_subgrids, subgrid_size, subgrid_size);
+                h.parallel_for(range, [=](const sycl::id<3> i) {
+                    const auto s = i[0];
+                    const auto y = i[1];
+                    const auto x = i[2];
 #else
             for (size_t s = 0; s < n_subgrids; ++s)
 #endif
                     {
                         // Load metadata
-                        const Metadata m = metadata.data()[s];
+                        const Metadata m = metadata[s];
                         const int time_offset = (m.baseline_offset - baseline_offset_1) + m.time_offset;
                         const int nr_timesteps = m.nr_timesteps;
                         const int aterm_index = m.aterm_index;
@@ -87,8 +135,10 @@ namespace gridding_benchmark
 #ifdef ENABLE_OMP
 #pragma omp parallel for collapse(2)
 #endif
-                for (size_t y = 0; y < subgrid_size; ++y)
-                    for (size_t x = 0; x < subgrid_size; ++x)
+#ifndef ENABLE_SYCL
+                        for (size_t y = 0; y < subgrid_size; ++y)
+                            for (size_t x = 0; x < subgrid_size; ++x)
+#endif
 #endif
                             {
                                 // Initialize pixel for every polarization
@@ -126,7 +176,7 @@ namespace gridding_benchmark
                                         // Update pixel for every polarization
                                         const size_t index = (time_offset + time) * nchannels + chan;
                                         const auto *visibilities_cpx_ptr =
-                                            reinterpret_cast<const std::complex<float> *>(visibilities.data() + index);
+                                            reinterpret_cast<const std::complex<float> *>(&visibilities[index]);
                                         for (size_t pol = 0; pol < n_correlations; pol++)
                                         {
                                             pixels[pol] += visibilities_cpx_ptr[pol] * phasor;
@@ -139,14 +189,14 @@ namespace gridding_benchmark
                                                                   subgrid_size * n_correlations +
                                                               y * subgrid_size * n_correlations + x * n_correlations;
                                 const std::complex<float> *aterm1_ptr =
-                                    &reinterpret_cast<const std::complex<float> *>(aterms.data())[station1_index];
+                                    &reinterpret_cast<const std::complex<float> *>(&aterms[0])[station1_index];
 
                                 // Load aterm for station2
                                 const size_t station2_index = (aterm_index * nstations + station2) * subgrid_size *
                                                                   subgrid_size * n_correlations +
                                                               y * subgrid_size * n_correlations + x * n_correlations;
                                 const std::complex<float> *aterm2_ptr =
-                                    &reinterpret_cast<const std::complex<float> *>(aterms.data())[station2_index];
+                                    &reinterpret_cast<const std::complex<float> *>(&aterms[0])[station2_index];
 
                                 // Apply aterm
                                 apply_aterm_gridder(&pixels[0], aterm1_ptr, aterm2_ptr);
@@ -163,9 +213,12 @@ namespace gridding_benchmark
                                 }
                             }
                         }
-#ifdef ENABLE_TBB
+#if defined(ENABLE_TBB)
                     }
                 });
+#elif defined(ENABLE_SYCL)
+                });
+            });
 #endif
         }
         const auto end = std::chrono::high_resolution_clock::now();

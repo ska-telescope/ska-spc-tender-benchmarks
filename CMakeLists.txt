@@ -17,24 +17,27 @@ option(ENABLE_BENCH_GRIDDING "Enable the benchmarks related to Gridding" ON)
 # Parallelization management Adds the right dependencies and defines depending
 # on the parallelization library.
 #
-set(PARALLELIZATION_LIBRARIES "OMP" "TBB")
+set(PARALLELIZATION_LIBRARIES "OMP" "TBB" "SYCL")
 set(PARALLELIZATION_LIBRARY
     "OMP"
     CACHE
       STRING
-      "Parallelization library to use for CPU benchmarks. May be TBB, OMP or NONE."
+      "Parallelization library to use for CPU benchmarks. May be TBB, OMP, SYCL or NONE."
 )
 set_property(CACHE PARALLELIZATION_LIBRARY PROPERTY STRINGS ${PARALLELIZATION_LIBRARIES})
 
-if(NOT PARALLELIZATION_LIBRARY MATCHES "^(OMP|TBB|NONE)$")
+if(NOT PARALLELIZATION_LIBRARY MATCHES "^(OMP|TBB|SYCL|NONE)$")
   message(
     FATAL_ERROR
-      "The PARALLELIZATION_LIBRARY parameter must be set to either OMP, TBB or NONE."
+      "The PARALLELIZATION_LIBRARY parameter must be set to either OMP, TBB, SYCL or NONE."
   )
 endif()
 
+if(PARALLELIZATION_LIBRARY STREQUAL "SYCL")
+  set(CMAKE_CXX_COMPILER /opt/intel/oneapi/compiler/2024.2/bin/icpx)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda,spir64_x86_64")
+endif()
 
-set(CMAKE_CXX_FLAGS "-g")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -51,7 +54,6 @@ if(VTUNE_PROFILE)
       SHA256=9456a76fcf9f30d77674b751e206b89a00cc0367ef3fadfe802b93519105793b)
   FetchContent_MakeAvailable(ittnotify)
 endif()
-
 
 find_package(MPI REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)

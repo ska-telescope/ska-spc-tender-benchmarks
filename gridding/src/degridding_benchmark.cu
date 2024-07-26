@@ -44,7 +44,7 @@ namespace gridding_benchmark
             float2 pixel[4];
             for (unsigned pol = 0; pol < nr_polarizations; pol++)
             {
-                unsigned int pixel_idx = index_subgrid(subgrid_size, s, pol, y, x);
+                unsigned int pixel_idx = index_subgrid_(subgrid_size, s, pol, y, x);
                 pixel[pol] = subgrid[pixel_idx] * spheroidal_;
             }
 
@@ -299,7 +299,7 @@ namespace gridding_benchmark
         cudaCheck(cudaEventRecord(begin_out_memcpy));
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
-            cudaCheck(cudaMemcpy(d_subgrids, subgrids.data(), d_subgrids_size, cudaMemcpyDeviceToHost));
+            cudaCheck(cudaMemcpy(subgrids.data(), d_subgrids, d_subgrids_size, cudaMemcpyDeviceToHost));
         }
         cudaCheck(cudaEventRecord(end_out_memcpy));
         cudaCheck(cudaEventSynchronize(end_out_memcpy));

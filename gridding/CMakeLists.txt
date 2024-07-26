@@ -17,6 +17,11 @@ if(PARALLELIZATION_LIBRARY STREQUAL "OMP")
   target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_OMP)
 endif()
 
+if(PARALLELIZATION_LIBRARY STREQUAL "SYCL")
+  target_link_libraries(gridding-benchmarks PUBLIC sycl)
+  target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_SYCL)
+endif()
+
 # Hardware options
 if(ENABLE_CPU)
   target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_CPU=1)
