@@ -4,3 +4,5 @@ build-temp*
 *.sif
 .spack-env
 .cache
+build/
+.ninja*
