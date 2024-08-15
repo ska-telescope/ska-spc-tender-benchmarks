@@ -6,3 +6,4 @@ build-temp*
 .cache
 build/
 .ninja*
+spack.lock
