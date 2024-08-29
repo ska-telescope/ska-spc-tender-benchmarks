@@ -4,7 +4,7 @@
 
 namespace gridding_benchmark
 {
-    inline __device__ long index_subgrid(int subgrid_size, int s, int pol, int y, int x)
+    inline __device__ long index_subgrid_(int subgrid_size, int s, int pol, int y, int x)
     {
         // subgrid: [nr_subgrids][NR_POLARIZATIONS][subgrid_size][subgrid_size]
         return s * n_correlations * subgrid_size * subgrid_size + pol * subgrid_size * subgrid_size + y * subgrid_size +
@@ -19,7 +19,7 @@ namespace gridding_benchmark
 
     inline __device__ int index_aterm(int subgrid_size, int nr_stations, int aterm_index, int station, int y, int x)
     {
-        // aterm: [nr_aterms][subgrid_size][subgrid_size][NR_CORRELATIONS]
+        // aterm: [nr_aterms][subgrid_size][subgrid_size][n_correlations]
         int aterm_nr = (aterm_index * nr_stations + station);
         return aterm_nr * subgrid_size * subgrid_size * n_correlations + y * subgrid_size * n_correlations +
                x * n_correlations;

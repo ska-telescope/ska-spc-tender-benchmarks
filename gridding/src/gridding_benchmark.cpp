@@ -18,6 +18,7 @@
 
 namespace gridding_benchmark
 {
+#ifndef ENABLE_SYCL
     template <>
     benchmark_result gridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
         const gridding_benchmark::configuration &configuration, Array2D<UVWCoordinate<float>> &uvw,
@@ -43,6 +44,24 @@ namespace gridding_benchmark
         __itt_task_begin(domain, __itt_null, __itt_null, handle_main);
 #endif
 
+#if defined(ENABLE_SYCL)
+        sycl::queue queue;
+
+    std::cout << "Using "
+        << queue.get_device().get_info<sycl::info::device::name>()
+        << std::endl;
+
+        auto uvw_buffer = make_buffer(uvw);
+        auto visibilities_buffer = make_buffer(visibilities);
+        auto baselines_buffer = make_buffer(baselines);
+        auto aterms_buffer = make_buffer(aterms);
+        auto frequencies_buffer = make_buffer(frequencies);
+        auto wavenumbers_buffer = make_buffer(wavenumbers);
+        auto spheroidal_buffer = make_buffer(spheroidal);
+        auto subgrids_buffer = make_buffer(subgrids);
+        auto metadata_buffer = make_buffer(metadata);
+#endif
+
         const auto begin = std::chrono::high_resolution_clock::now();
         const auto subgrid_size = configuration.subgrid_size;
         for (size_t i = 0; i < configuration.niterations; ++i)
@@ -52,6 +71,23 @@ namespace gridding_benchmark
                 tbb::blocked_range3d<size_t>(0, n_subgrids, 0, subgrid_size, 0, subgrid_size),
                 [&](const tbb::blocked_range3d<size_t> &range) {
                     for (auto s = range.pages().begin(); s < range.pages().end(); ++s)
+#elif defined(ENABLE_SYCL)
+            queue.submit([&](sycl::handler &h) {
+                sycl::accessor uvw(uvw_buffer, h, sycl::read_only);
+                sycl::accessor visibilities(visibilities_buffer, h, sycl::read_only);
+                sycl::accessor baselines(baselines_buffer, h, sycl::read_only);
+                sycl::accessor aterms(aterms_buffer, h, sycl::read_only);
+                sycl::accessor frequencies(frequencies_buffer, h, sycl::read_only);
+                sycl::accessor wavenumbers(wavenumbers_buffer, h, sycl::read_only);
+                sycl::accessor spheroidal(spheroidal_buffer, h, sycl::read_only);
+                sycl::accessor subgrids(subgrids_buffer, h, sycl::read_write);
+                sycl::accessor metadata(metadata_buffer, h, sycl::read_only);
+
+                sycl::range<3> range(n_subgrids, subgrid_size, subgrid_size);
+                h.parallel_for(range, [=](const sycl::id<3> i) {
+                    const auto s = i[0];
+                    const auto y = i[1];
+                    const auto x = i[2];
 #else
             for (size_t s = 0; s < n_subgrids; ++s)
 #endif
@@ -87,8 +123,8 @@ namespace gridding_benchmark
 #ifdef ENABLE_OMP
 #pragma omp parallel for collapse(2)
 #endif
-                for (size_t y = 0; y < subgrid_size; ++y)
-                    for (size_t x = 0; x < subgrid_size; ++x)
+                        for (size_t y = 0; y < subgrid_size; ++y)
+                            for (size_t x = 0; x < subgrid_size; ++x)
 #endif
                             {
                                 // Initialize pixel for every polarization
@@ -180,6 +216,7 @@ namespace gridding_benchmark
         result.compute_time = compute_us / static_cast<double>(configuration.niterations);
         return result;
     }
+#endif
 
     benchmark_result launch_gridding(const configuration &configuration)
     {
@@ -212,18 +249,22 @@ namespace gridding_benchmark
         initialize_metadata(configuration.grid_size, configuration.ntimeslots, configuration.ntimesteps_per_subgrid,
                             baselines, metadata);
 
+#ifdef ENABLE_CPU
         if (configuration.htype == benchmarks_common::hardware_type::cpu)
         {
             return gridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
                 configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
                 metadata);
         }
-        else if (configuration.htype == benchmarks_common::hardware_type::gpu)
+#endif
+#ifdef ENABLE_GPU
+        if (configuration.htype == benchmarks_common::hardware_type::gpu)
         {
             return gridding_benchmark_launcher<benchmarks_common::hardware_type::gpu>::launch(
                 configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
                 metadata);
         }
+#endif
         return {};
     }
 } // namespace gridding_benchmark

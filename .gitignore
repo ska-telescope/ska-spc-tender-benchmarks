@@ -1,4 +1,5 @@
 build
+build_jed
 build-temp*
 .vscode
 *.sif

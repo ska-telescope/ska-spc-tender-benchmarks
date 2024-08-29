@@ -6,9 +6,134 @@
 
 #define ALIGN(N, A) (((N) + (A)-1) / (A) * (A))
 #define NUM_THREADS 128
+#define V6
 
 namespace gridding_benchmark
 {
+#ifdef V1
+    __global__ void kernel_degridder(int grid_size, int subgrid_size, float image_size, float w_step_in_lambda,
+                                     int nr_channels, int nr_stations, UVWCoordinate<float> *uvw, float *wavenumbers,
+                                     float2 *visibilities, float *spheroidal, float2 *aterms, Metadata *metadata,
+                                     float2 *subgrids)
+    {
+        int tidx = threadIdx.x;
+        int tidy = threadIdx.y;
+        int tid = tidx + tidy * blockDim.x;
+        int nr_threads = blockDim.x * blockDim.y;
+        int s = blockIdx.x;
+
+        // Find offset of first subgrid
+        const Metadata m_0 = metadata[0];
+        const int baseline_offset_1 = m_0.baseline_offset;
+
+        // Load metadata
+        const Metadata m = metadata[s];
+        const int time_offset = (m.baseline_offset - baseline_offset_1) + m.time_offset;
+        const int nr_timesteps = m.nr_timesteps;
+        const int aterm_index = m.aterm_index;
+        const int station1 = m.baseline.station1;
+        const int station2 = m.baseline.station2;
+        const int x_coordinate = m.coordinate.x;
+        const int y_coordinate = m.coordinate.y;
+        const float w_offset_in_lambda = w_step_in_lambda * (m.coordinate.z + 0.5);
+
+        // Compute u and v offset in wavelenghts
+        const float u_offset = (x_coordinate + subgrid_size / 2 - grid_size / 2) * (2 * M_PI / image_size);
+        const float v_offset = (y_coordinate + subgrid_size / 2 - grid_size / 2) * (2 * M_PI / image_size);
+        const float w_offset = 2 * M_PI * w_offset_in_lambda;
+
+        // Iterate all timesteps
+        for (int time = tid; time < nr_timesteps; time += nr_threads)
+        {
+            if (time >= nr_timesteps)
+            {
+                break;
+            }
+
+            // Load UVW coordinates
+            float u = uvw[time_offset + time].u;
+            float v = uvw[time_offset + time].v;
+            float w = uvw[time_offset + time].w;
+
+            // Iterate all channels
+            for (int chan = 0; chan < nr_channels; chan++)
+            {
+
+                // Update all polarizations
+                float2 sum[n_correlations];
+                for (int k = 0; k < n_correlations; k++)
+                {
+                    sum[k] = make_float2(0, 0);
+                }
+
+                // Iterate all pixels
+                for (int y = 0; y < subgrid_size; y++)
+                {
+                    for (int x = 0; x < subgrid_size; x++)
+                    {
+                        // Load aterm for station1
+                        int station1_index =
+                            (aterm_index * nr_stations + station1) * subgrid_size * subgrid_size * n_correlations +
+                            y * subgrid_size * n_correlations + x * n_correlations;
+                        const float2 *aterm1_ptr = &aterms[station1_index];
+
+                        // Load aterm for station2
+                        int station2_index =
+                            (aterm_index * nr_stations + station2) * subgrid_size * subgrid_size * n_correlations +
+                            y * subgrid_size * n_correlations + x * n_correlations;
+                        const float2 *aterm2_ptr = &aterms[station2_index];
+
+                        // Load spheroidal
+                        float sph = spheroidal[y * subgrid_size + x];
+
+                        // Load pixels
+                        float2 pixels[n_correlations];
+                        for (int pol = 0; pol < n_correlations; pol++)
+                        {
+                            unsigned idx_subgrid = s * n_correlations * subgrid_size * subgrid_size +
+                                                   pol * subgrid_size * subgrid_size + y * subgrid_size + x;
+                            pixels[pol] = sph * subgrids[idx_subgrid];
+                        }
+
+                        // Apply aterm
+                        apply_aterm_degridder(pixels, aterm1_ptr, aterm2_ptr);
+
+                        // Compute l,m,n
+                        const float l = compute_l(x, subgrid_size, image_size);
+                        const float m = compute_m(y, subgrid_size, image_size);
+                        const float n = compute_n(l, m);
+
+                        // Compute phase index
+                        float phase_index = u * l + v * m + w * n;
+
+                        // Compute phase offset
+                        float phase_offset = u_offset * l + v_offset * m + w_offset * n;
+
+                        // Compute phase
+                        float phase = (phase_index * wavenumbers[chan]) - phase_offset;
+
+                        // Compute phasor
+                        float2 phasor = make_float2(cosf(phase), sinf(phase));
+
+                        for (int pol = 0; pol < n_correlations; pol++)
+                        {
+                            sum[pol] += pixels[pol] * phasor;
+                        }
+                    } // end for x
+                }     // end for y
+
+                // Store visibility
+                size_t index = (time_offset + time) * nr_channels + chan;
+                for (int pol = 0; pol < n_correlations; pol++)
+                {
+                    visibilities[index * n_correlations + pol] = sum[pol];
+                }
+            } // end for channel
+        }     // end for time
+    }
+#endif
+
+#ifdef V6
     // Storage
     __shared__ float4 shared_v6[3][NUM_THREADS];
 
@@ -44,7 +169,7 @@ namespace gridding_benchmark
             float2 pixel[4];
             for (unsigned pol = 0; pol < nr_polarizations; pol++)
             {
-                unsigned int pixel_idx = index_subgrid(subgrid_size, s, pol, y, x);
+                unsigned int pixel_idx = index_subgrid_(subgrid_size, s, pol, y, x);
                 pixel[pol] = subgrid[pixel_idx] * spheroidal_;
             }
 
@@ -103,10 +228,10 @@ namespace gridding_benchmark
         } // end for k (batch)
     }
 
-    __global__ void kernel_degridder_v6(int grid_size, int subgrid_size, float image_size, float w_step_in_lambda,
-                                        int nr_channels, int nr_stations, UVWCoordinate<float> *uvw, float *wavenumbers,
-                                        float2 *visibilities, float *spheroidal, float2 *aterms, Metadata *metadata,
-                                        float2 *subgrids)
+    __global__ void kernel_degridder(int grid_size, int subgrid_size, float image_size, float w_step_in_lambda,
+                                     int nr_channels, int nr_stations, UVWCoordinate<float> *uvw, float *wavenumbers,
+                                     float2 *visibilities, float *spheroidal, float2 *aterms, Metadata *metadata,
+                                     float2 *subgrids)
     {
         int tidx = threadIdx.x;
         int tidy = threadIdx.y;
@@ -201,6 +326,7 @@ namespace gridding_benchmark
             }     // end for time_offset_local
         }         // end for pixel_offset
     }
+#endif
 
     template <>
     benchmark_result degridding_benchmark_launcher<benchmarks_common::hardware_type::gpu>::launch(
@@ -266,6 +392,7 @@ namespace gridding_benchmark
 
         float in_copy_time_ms;
         cudaCheck(cudaEventElapsedTime(&in_copy_time_ms, begin_in_memcpy, end_in_memcpy));
+        in_copy_time_ms /= static_cast<float>(configuration.niterations);
 
         const auto n_baselines = (configuration.nstations * (configuration.nstations - 1)) / 2;
         const auto n_subgrids = n_baselines * configuration.ntimeslots;
@@ -280,10 +407,10 @@ namespace gridding_benchmark
         cudaCheck(cudaEventRecord(begin_compute));
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
-            kernel_degridder_v6<<<n_subgrids, NUM_THREADS>>>(
-                configuration.grid_size, configuration.subgrid_size, image_size, w_step_in_lambda,
-                configuration.nchannels, configuration.nstations, d_uvw, d_wavenumbers, d_visibilities, d_spheroidal,
-                d_aterms, d_metadata, d_subgrids);
+            kernel_degridder<<<n_subgrids, NUM_THREADS>>>(configuration.grid_size, configuration.subgrid_size,
+                                                          image_size, w_step_in_lambda, configuration.nchannels,
+                                                          configuration.nstations, d_uvw, d_wavenumbers, d_visibilities,
+                                                          d_spheroidal, d_aterms, d_metadata, d_subgrids);
         }
         cudaCheck(cudaEventRecord(end_compute));
         cudaCheck(cudaEventSynchronize(end_compute));
@@ -299,17 +426,18 @@ namespace gridding_benchmark
         cudaCheck(cudaEventRecord(begin_out_memcpy));
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
-            cudaCheck(cudaMemcpy(d_subgrids, subgrids.data(), d_subgrids_size, cudaMemcpyDeviceToHost));
+            cudaCheck(cudaMemcpy(subgrids.data(), d_subgrids, d_subgrids_size, cudaMemcpyDeviceToHost));
         }
         cudaCheck(cudaEventRecord(end_out_memcpy));
         cudaCheck(cudaEventSynchronize(end_out_memcpy));
 
         float out_copy_time_ms;
         cudaCheck(cudaEventElapsedTime(&out_copy_time_ms, begin_out_memcpy, end_out_memcpy));
+        out_copy_time_ms /= static_cast<float>(configuration.niterations);
 
         benchmark_result result;
-        result.in_transfer_time = in_copy_time_ms * 1000.f / static_cast<float>(configuration.niterations);
-        result.out_transfer_time = out_copy_time_ms * 1000.f / static_cast<float>(configuration.niterations);
+        result.in_transfer_time = in_copy_time_ms * 1000.f;
+        result.out_transfer_time = out_copy_time_ms * 1000.f;
         result.in_bandwidth = static_cast<float>(total_in_size) / (1000.f * in_copy_time_ms);
         result.out_bandwidth = static_cast<float>(total_out_size) / (1000.f * out_copy_time_ms);
         result.compute_time = compute_time_ms * 1000.f / static_cast<float>(configuration.niterations);

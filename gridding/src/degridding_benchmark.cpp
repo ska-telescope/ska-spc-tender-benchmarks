@@ -20,6 +20,7 @@
 
 namespace gridding_benchmark
 {
+#ifndef ENABLE_SYCL
     template <>
     benchmark_result degridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
         const gridding_benchmark::configuration &configuration, Array2D<UVWCoordinate<float>> &uvw,
@@ -197,6 +198,7 @@ namespace gridding_benchmark
         result.compute_time = compute_us / static_cast<double>(configuration.niterations);
         return result;
     }
+#endif
 
     benchmark_result launch_degridding(const configuration &configuration)
     {
@@ -229,18 +231,22 @@ namespace gridding_benchmark
         initialize_metadata(configuration.grid_size, configuration.ntimeslots, configuration.ntimesteps_per_subgrid,
                             baselines, metadata);
 
+#ifdef ENABLE_CPU
         if (configuration.htype == benchmarks_common::hardware_type::cpu)
         {
             return degridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
                 configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
                 metadata);
         }
-        else if (configuration.htype == benchmarks_common::hardware_type::gpu)
+#endif
+#ifdef ENABLE_GPU
+        if (configuration.htype == benchmarks_common::hardware_type::gpu)
         {
             return degridding_benchmark_launcher<benchmarks_common::hardware_type::gpu>::launch(
                 configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
                 metadata);
         }
+#endif
         return {};
     }
 } // namespace gridding_benchmark

@@ -1,9 +1,9 @@
 grid_size: 1024
-operation_types: [gridding, degridding]
-niterations: 100
+operation_types: [gridding]
+niterations: 1000
 nstations: 2
 ntimeslots: 2
 ntimesteps_per_subgrid: 128
 nchannels: 16
 subgrid_size: 32
-hardware_types: [cpu, gpu]
+hardware_types: [gpu, cpu]

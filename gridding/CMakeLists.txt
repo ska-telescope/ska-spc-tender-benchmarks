@@ -17,6 +17,12 @@ if(PARALLELIZATION_LIBRARY STREQUAL "OMP")
   target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_OMP)
 endif()
 
+if(PARALLELIZATION_LIBRARY STREQUAL "SYCL")
+  target_link_libraries(gridding-benchmarks PUBLIC sycl)
+  target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_SYCL)
+  target_sources(gridding-benchmarks PRIVATE src/gridding_benchmark_sycl.cpp src/degridding_benchmark_sycl.cpp)
+endif()
+
 # Hardware options
 if(ENABLE_CPU)
   target_compile_definitions(gridding-benchmarks PUBLIC ENABLE_CPU=1)
@@ -45,6 +51,12 @@ target_sources(
           src/gridding_initialization.cpp
           src/main.cpp)
 
+if(ENABLE_GPU)
+  target_sources(
+    gridding-benchmarks
+    PRIVATE inc/common_gridding.cuh src/degridding_benchmark.cu
+            src/gridding_benchmark.cu)
+endif()
+
 target_link_libraries(gridding-benchmarks PUBLIC yaml-cpp)
-target_link_libraries(gridding-benchmarks PUBLIC MPI::MPI_CXX)
 target_link_libraries(gridding-benchmarks PUBLIC benchmarks-common)
