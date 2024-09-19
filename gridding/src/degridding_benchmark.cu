@@ -299,7 +299,7 @@ namespace gridding_benchmark
         cudaCheck(cudaEventRecord(begin_out_memcpy));
         for (size_t i = 0; i < configuration.niterations; ++i)
         {
-            cudaCheck(cudaMemcpy(d_subgrids, subgrids.data(), d_subgrids_size, cudaMemcpyDeviceToHost));
+            cudaCheck(cudaMemcpy(subgrids.data(), d_subgrids, d_subgrids_size, cudaMemcpyDeviceToHost));
         }
         cudaCheck(cudaEventRecord(end_out_memcpy));
         cudaCheck(cudaEventSynchronize(end_out_memcpy));
