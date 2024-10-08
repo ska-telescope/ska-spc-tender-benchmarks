@@ -1,5 +1,5 @@
 diff --git a/current/tConvolveACC/Benchmark.cc b/current/tConvolveACC/Benchmark.cc
-index b0f6d7f..4329575 100644
+index b0f6d7f..19f1e56 100644
 --- a/current/tConvolveACC/Benchmark.cc
 +++ b/current/tConvolveACC/Benchmark.cc
 @@ -465,10 +465,12 @@ void Benchmark::gridKernelACC(const std::vector<Value>& C,
@@ -13,7 +13,7 @@ index b0f6d7f..4329575 100644
 +                gptr_re[0] += real;
                  #pragma acc atomic update
 -                gptr_re[1] = gptr_re[1] + cval.imag();
-+                gptr_re[1] = imag;
++                gptr_re[1] += imag;
              }
          }
  
@@ -34,15 +34,19 @@ index 67e650d..9ff5be8 100644
  LIBS=
  
 diff --git a/current/tMajorACC/Makefile b/current/tMajorACC/Makefile
-index 7d5d7a7..6a0e9eb 100644
+index 7d5d7a7..916149f 100644
 --- a/current/tMajorACC/Makefile
 +++ b/current/tMajorACC/Makefile
-@@ -41,7 +41,7 @@ else
+@@ -40,8 +40,10 @@ else
+     # Multicore CPU version
  endif
  
- CFLAGS=-fast -O3 $(CFLAGS_EXTRA)
+-CFLAGS=-fast -O3 $(CFLAGS_EXTRA)
 -LDFLAGS=-L$(FFTW_LIB) -lfftw3f $(LDFLAGS_EXTRA)
++CFLAGS=-fast -O3  $(CFLAGS_EXTRA) -I$(CUDA_HOME)/include
++CFLAGS+=`pkg-config --cflags fftw3f`
 +LDFLAGS=-lfftw3f $(LDFLAGS_EXTRA)
++LDFLAGS+=`pkg-config --libs fftw3f`
  
  all:		tMajorACC
  
