@@ -94,34 +94,48 @@ namespace fft_benchmark
             }
         }
 
-        const auto &hardware_types_config = yaml_config["hardware_types"];
-        if (hardware_types_config.size() == 0)
+        const auto &backend_types_config = yaml_config["backend_types"];
+        if (backend_types_config.size() == 0)
         {
-            std::cerr << "hardware_types section empty." << std::endl;
+            std::cerr << "backend_types section empty." << std::endl;
             exit(-1);
         }
 
-        std::vector<benchmarks_common::hardware_type> hardware_types;
-        hardware_types.reserve(hardware_types_config.size());
-        for (const auto &hardware_type_config : hardware_types_config)
+        std::vector<benchmarks_common::backend_type> backend_types;
+        backend_types.reserve(backend_types_config.size());
+        for (const auto &backend_type_config : backend_types_config)
         {
-            const auto hardware_type_string = hardware_type_config.as<std::string>();
+            const auto backend_type_string = backend_type_config.as<std::string>();
 #ifdef ENABLE_CPU
-            if (hardware_type_string == "cpu")
+            if (backend_type_string == "cpu")
             {
-                hardware_types.push_back(benchmarks_common::hardware_type::cpu);
+                backend_types.push_back(benchmarks_common::backend_type::cpu);
                 continue;
             }
 #endif
 #ifdef ENABLE_GPU
-            if (hardware_type_string == "gpu")
+            if (backend_type_string == "gpu")
             {
-                hardware_types.push_back(benchmarks_common::hardware_type::gpu);
+                backend_types.push_back(benchmarks_common::backend_type::gpu);
                 continue;
             }
 #endif
-            std::cerr << "Invalid hardware_type token " << hardware_type_string
-                      << " was found. Must be either cpu, nvidia, amd or heffte." << std::endl;
+#ifdef ENABLE_MKL
+            if (backend_type_string == "mkl")
+            {
+                backend_types.push_back(benchmarks_common::backend_type::mkl);
+                continue;
+            }
+#endif
+#ifdef ENABLE_FFTW
+            if (backend_type_string == "fftw")
+            {
+                backend_types.push_back(benchmarks_common::backend_type::fftw);
+                continue;
+            }
+#endif
+            std::cerr << "Invalid backend_type token " << backend_type_string
+                      << " was found. Must be either cpu, gpu, fftw or mkl." << std::endl;
             exit(-1);
         }
 
@@ -143,7 +157,7 @@ namespace fft_benchmark
 
         std::vector<fft_benchmark::configuration> configurations;
         configurations.reserve(dimensions.size() * float_types.size());
-        for (const auto hardware_type : hardware_types)
+        for (const auto backend_type : backend_types)
         {
             for (const auto float_type : float_types)
             {
@@ -158,7 +172,7 @@ namespace fft_benchmark
                         configuration.ny = dimension.second;
                         configuration.niterations = niterations;
                         configuration.memorysize = memorysize;
-                        configuration.htype = hardware_type;
+                        configuration.htype = backend_type;
                         configurations.emplace_back(configuration);
                     }
                 }

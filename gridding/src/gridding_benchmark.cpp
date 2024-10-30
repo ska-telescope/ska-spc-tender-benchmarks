@@ -19,7 +19,7 @@
 namespace gridding_benchmark
 {
     template <>
-    benchmark_result gridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
+    benchmark_result gridding_benchmark_launcher<benchmarks_common::backend_type::cpu>::launch(
         const gridding_benchmark::configuration &configuration, Array2D<UVWCoordinate<float>> &uvw,
         Array3D<Visibility<std::complex<float>>> &visibilities, Array1D<Baseline> &baselines,
         Array4D<Matrix2x2<std::complex<float>>> &aterms, Array1D<float> &frequencies, Array1D<float> &wavenumbers,
@@ -132,7 +132,7 @@ namespace gridding_benchmark
                                             pixels[pol] += visibilities_cpx_ptr[pol] * phasor;
                                         }
                                     } // end for chan
-                                }     // end for time
+                                } // end for time
 
                                 // Load a term for station1
                                 const size_t station1_index = (aterm_index * nstations + station1) * subgrid_size *
@@ -212,18 +212,22 @@ namespace gridding_benchmark
         initialize_metadata(configuration.grid_size, configuration.ntimeslots, configuration.ntimesteps_per_subgrid,
                             baselines, metadata);
 
-        if (configuration.htype == benchmarks_common::hardware_type::cpu)
+#ifdef ENABLE_CPU
+        if (configuration.htype == benchmarks_common::backend_type::cpu)
         {
-            return gridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
+            return gridding_benchmark_launcher<benchmarks_common::backend_type::cpu>::launch(
                 configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
                 metadata);
         }
-        else if (configuration.htype == benchmarks_common::hardware_type::gpu)
+#endif
+#ifdef ENABLE_GPU
+        if (configuration.htype == benchmarks_common::backend_type::gpu)
         {
-            return gridding_benchmark_launcher<benchmarks_common::hardware_type::gpu>::launch(
+            return gridding_benchmark_launcher<benchmarks_common::backend_type::gpu>::launch(
                 configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
                 metadata);
         }
+#endif
         return {};
     }
 } // namespace gridding_benchmark

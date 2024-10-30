@@ -21,7 +21,7 @@
 namespace gridding_benchmark
 {
     template <>
-    benchmark_result degridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
+    benchmark_result degridding_benchmark_launcher<benchmarks_common::backend_type::cpu>::launch(
         const gridding_benchmark::configuration &configuration, Array2D<UVWCoordinate<float>> &uvw,
         Array3D<Visibility<std::complex<float>>> &visibilities, Array1D<Baseline> &baselines,
         Array4D<Matrix2x2<std::complex<float>>> &aterms, Array1D<float> &frequencies, Array1D<float> &wavenumbers,
@@ -171,7 +171,7 @@ namespace gridding_benchmark
                                         sum[pol] += pixels[(y * subgrid_size + x) * subgrid_size + pol] * phasor;
                                     }
                                 } // end for x
-                            }     // end for y
+                            } // end for y
                             const size_t index = (time_offset + time) * configuration.nchannels + chan;
                             for (size_t pol = 0; pol < n_correlations; pol++)
                             {
@@ -179,7 +179,7 @@ namespace gridding_benchmark
                                     visibilities.data())[index * n_correlations + pol] = sum[pol];
                             }
                         } // end for time and channel
-                }         // end for subgrids
+                } // end for subgrids
 #ifdef ENABLE_TBB
             });
 #endif
@@ -229,18 +229,22 @@ namespace gridding_benchmark
         initialize_metadata(configuration.grid_size, configuration.ntimeslots, configuration.ntimesteps_per_subgrid,
                             baselines, metadata);
 
-        if (configuration.htype == benchmarks_common::hardware_type::cpu)
+#ifdef ENABLE_CPU
+        if (configuration.htype == benchmarks_common::backend_type::cpu)
         {
-            return degridding_benchmark_launcher<benchmarks_common::hardware_type::cpu>::launch(
+            return degridding_benchmark_launcher<benchmarks_common::backend_type::cpu>::launch(
                 configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
                 metadata);
         }
-        else if (configuration.htype == benchmarks_common::hardware_type::gpu)
+#endif
+#ifdef ENABLE_GPU
+        if (configuration.htype == benchmarks_common::backend_type::gpu)
         {
-            return degridding_benchmark_launcher<benchmarks_common::hardware_type::gpu>::launch(
+            return degridding_benchmark_launcher<benchmarks_common::backend_type::gpu>::launch(
                 configuration, uvw, visibilities, baselines, aterms, frequencies, wavenumbers, spheroidal, subgrids,
                 metadata);
         }
+#endif
         return {};
     }
 } // namespace gridding_benchmark

@@ -7,7 +7,7 @@
 
 namespace gridding_benchmark
 {
-    template <benchmarks_common::hardware_type htype>
+    template <benchmarks_common::backend_type htype>
     struct gridding_benchmark_launcher
     {
         // template <gridding_benchmark::float_type ftype>

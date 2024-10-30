@@ -1,6 +1,6 @@
-memorysize: 1000000000
+memorysize: 50000000000
 niterations: 100
-dimensions: [[64, 64], [128, 128], [512, 512], [1024, 1024], [2048, 2048], [4096, 4096], [8192, 8192], [16384, 16384], [24576,24576]]
-float_types: [float]
+dimensions: [[64, 64], [128, 128], [512, 512], [1024, 1024], [2048, 2048], [4096, 4096], [8192, 8192], [16384, 16384], [24576,24576],[32768,32768]]
+float_types: [float, double]
 transform_types: [forward]
-hardware_types: [gpu]
+backend_types: [gpu]

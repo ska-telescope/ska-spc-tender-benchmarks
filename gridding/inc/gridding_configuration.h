@@ -53,7 +53,7 @@ namespace gridding_benchmark
 
     struct configuration
     {
-        benchmarks_common::hardware_type htype;
+        benchmarks_common::backend_type htype;
         operation_type operation;
         size_t niterations;
         size_t grid_size;

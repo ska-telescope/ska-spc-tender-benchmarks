@@ -17,7 +17,6 @@
 #include "fft_benchmark.h"
 #include "fft_configuration.h"
 
-
 void run(const std::vector<fft_benchmark::configuration> &configurations, const std::filesystem::path &output)
 {
 #ifdef VTUNE_PROFILE
@@ -36,7 +35,7 @@ void run(const std::vector<fft_benchmark::configuration> &configurations, const 
 
     std::vector<std::array<std::string, 6>> config_table;
     config_table.emplace_back(std::array<std::string, 6>{"Configuration ID", "  Iterations", "  Dimensions",
-                                                         "  Max memory size", "  Precision", "  Hardware"});
+                                                         "  Max memory size", "  Precision", "  Backend"});
     int i_configuration = 0;
     for (const auto configuration : configurations)
     {
@@ -46,24 +45,10 @@ void run(const std::vector<fft_benchmark::configuration> &configurations, const 
         line[2] = std::to_string(configuration.nx) + " * " + std::to_string(configuration.ny);
         line[3] = benchmarks_common::bytes_to_memory_size(configuration.memorysize);
         line[4] = (configuration.ftype == fft_benchmark::float_type::single_precision ? "single" : "double");
-        line[5] = hardware_type_string(configuration.htype);
+        line[5] = backend_type_string(configuration.htype);
         config_table.emplace_back(line);
     }
     benchmarks_common::print_columns(config_table);
-    std::cout << std::endl;
-
-    std::cout << "##############\n";
-    std::cout << "## Warmup step\n\n";
-    std::cout << "Warming up…";
-
-    const auto begin_warmup = std::chrono::high_resolution_clock::now();
-    fft_benchmark::launch_benchmark(configurations.front());
-    const auto end_warmup = std::chrono::high_resolution_clock::now();
-    const auto warmup_s = std::chrono::duration_cast<std::chrono::seconds>(end_warmup - begin_warmup).count();
-
-    std::cout << " Done in " << warmup_s << " seconds.\n";
-    std::cout << "==> Total benchmark should take a bit more than "
-              << std::round(static_cast<double>(configurations.size()) * warmup_s) << " seconds." << std::endl;
     std::cout << std::endl;
 
     std::vector<std::string> titles;

@@ -16,36 +16,36 @@ namespace gridding_benchmark
 
         YAML::Node yaml_config = YAML::LoadFile(path);
 
-        const auto &hardware_types_config = yaml_config["hardware_types"];
-        if (hardware_types_config.size() == 0)
+        const auto &backend_types_config = yaml_config["backend_types"];
+        if (backend_types_config.size() == 0)
         {
-            benchmarks_common::log_and_abort("hardware_types section empty.");
+            benchmarks_common::log_and_abort("backend_types section empty.");
         }
 
-        std::vector<benchmarks_common::hardware_type> hardware_types;
-        hardware_types.reserve(hardware_types_config.size());
-        for (const auto &hardware_type_config : hardware_types_config)
+        std::vector<benchmarks_common::backend_type> backend_types;
+        backend_types.reserve(backend_types_config.size());
+        for (const auto &backend_type_config : backend_types_config)
         {
-            const auto hardware_type_string = hardware_type_config.as<std::string>();
-            if (hardware_type_string == "cpu")
+            const auto backend_type_string = backend_type_config.as<std::string>();
+            if (backend_type_string == "cpu")
             {
-                if (is_hardware_type_enabled(benchmarks_common::hardware_type::cpu))
+                if (is_backend_type_enabled(benchmarks_common::backend_type::cpu))
                 {
-                    hardware_types.push_back(benchmarks_common::hardware_type::cpu);
+                    backend_types.push_back(benchmarks_common::backend_type::cpu);
                     continue;
                 }
                 benchmarks_common::log_and_abort("CPU support is disabled");
             }
-            if (hardware_type_string == "gpu")
+            if (backend_type_string == "gpu")
             {
-                if (is_hardware_type_enabled(benchmarks_common::hardware_type::gpu))
+                if (is_backend_type_enabled(benchmarks_common::backend_type::gpu))
                 {
-                    hardware_types.push_back(benchmarks_common::hardware_type::gpu);
+                    backend_types.push_back(benchmarks_common::backend_type::gpu);
                     continue;
                 }
                 benchmarks_common::log_and_abort("GPU support is disabled");
             }
-            benchmarks_common::log_and_abort("Invalid hardware_type token " + hardware_type_string +
+            benchmarks_common::log_and_abort("Invalid backend_type token " + backend_type_string +
                                              " was found. Must be either cpu or gpu.");
             exit(-1);
         }
@@ -121,14 +121,14 @@ namespace gridding_benchmark
         const size_t ntimesteps_per_subgrid = yaml_config["ntimesteps_per_subgrid"].as<size_t>();
 
         std::vector<gridding_benchmark::configuration> configurations;
-        configurations.reserve(hardware_types.size());
-        for (const auto hardware_type : hardware_types)
+        configurations.reserve(backend_types.size());
+        for (const auto backend_type : backend_types)
         {
             for (const auto operation_type : operation_types)
             {
                 gridding_benchmark::configuration configuration;
                 configuration.operation = operation_type;
-                configuration.htype = hardware_type;
+                configuration.htype = backend_type;
                 configuration.grid_size = grid_size;
                 configuration.subgrid_size = subgrid_size;
                 configuration.niterations = niterations;

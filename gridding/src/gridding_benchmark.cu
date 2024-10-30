@@ -246,7 +246,7 @@ namespace gridding_benchmark
     }
 
     template <>
-    benchmark_result gridding_benchmark_launcher<benchmarks_common::hardware_type::gpu>::launch(
+    benchmark_result gridding_benchmark_launcher<benchmarks_common::backend_type::gpu>::launch(
         const gridding_benchmark::configuration &configuration, Array2D<UVWCoordinate<float>> &uvw,
         Array3D<Visibility<std::complex<float>>> &visibilities, Array1D<Baseline> &baselines,
         Array4D<Matrix2x2<std::complex<float>>> &aterms, Array1D<float> &frequencies, Array1D<float> &wavenumbers,

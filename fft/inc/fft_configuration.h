@@ -29,14 +29,13 @@ namespace fft_benchmark
     {
         float_type ftype;
         transform_type ttype;
-        benchmarks_common::hardware_type htype;
+        benchmarks_common::backend_type htype;
         size_t nx, ny;
         size_t niterations;
         size_t memorysize;
-        // bool in_place;
     };
 
-    template <benchmarks_common::hardware_type htype, float_type ftype>
+    template <benchmarks_common::backend_type htype, float_type ftype>
     struct fftw_type_helper;
 
     class invalid_float_type_error : std::runtime_error

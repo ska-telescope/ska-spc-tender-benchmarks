@@ -4,7 +4,7 @@
 #include "math.hpp"
 #include "util.cuh"
 
-#define ALIGN(N, A) (((N) + (A)-1) / (A) * (A))
+#define ALIGN(N, A) (((N) + (A) - 1) / (A) * (A))
 #define NUM_THREADS 128
 
 namespace gridding_benchmark
@@ -137,7 +137,7 @@ namespace gridding_benchmark
                     visibilities[index * n_correlations + pol] = make_float2(0, 0);
                 }
             } // end for chan
-        }     // end for time
+        } // end for time
 
         // Iterate pixels
         const int nr_pixels = subgrid_size * subgrid_size;
@@ -198,12 +198,12 @@ namespace gridding_benchmark
                         }
                     }
                 } // end for time
-            }     // end for time_offset_local
-        }         // end for pixel_offset
+            } // end for time_offset_local
+        } // end for pixel_offset
     }
 
     template <>
-    benchmark_result degridding_benchmark_launcher<benchmarks_common::hardware_type::gpu>::launch(
+    benchmark_result degridding_benchmark_launcher<benchmarks_common::backend_type::gpu>::launch(
         const gridding_benchmark::configuration &configuration, Array2D<UVWCoordinate<float>> &uvw,
         Array3D<Visibility<std::complex<float>>> &visibilities, Array1D<Baseline> &baselines,
         Array4D<Matrix2x2<std::complex<float>>> &aterms, Array1D<float> &frequencies, Array1D<float> &wavenumbers,

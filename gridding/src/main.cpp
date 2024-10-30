@@ -27,7 +27,7 @@ void run(const std::vector<gridding_benchmark::configuration> &configurations, c
     std::vector<std::array<std::string, 7>> config_table;
     config_table.emplace_back(std::array<std::string, 7>{"Configuration ID", "  Operation", "  Grid size",
                                                          "  Subgrid size", "  Number of channels",
-                                                         "  Number of stations", "  Hardware"});
+                                                         "  Number of stations", "  Backend"});
 
     int i_configuration = 0;
     for (const auto configuration : configurations)
@@ -39,7 +39,7 @@ void run(const std::vector<gridding_benchmark::configuration> &configurations, c
         line[3] = std::to_string(configuration.subgrid_size);
         line[4] = std::to_string(configuration.nchannels);
         line[5] = std::to_string(configuration.nstations);
-        line[6] = benchmarks_common::hardware_type_string(configuration.htype);
+        line[6] = benchmarks_common::backend_type_string(configuration.htype);
         config_table.emplace_back(line);
     }
     benchmarks_common::print_columns(config_table);

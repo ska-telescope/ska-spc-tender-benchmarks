@@ -5,17 +5,9 @@
 #include "gridding_configuration.h"
 #include "types.hpp"
 
-#ifdef __CUDA_ARCH__
-#define FUNCTION_ATTRIBUTES __device__
-#endif
-
-#ifndef FUNCTION_ATTRIBUTES
-#define FUNCTION_ATTRIBUTES
-#endif
-
 namespace gridding_benchmark
 {
-    template <benchmarks_common::hardware_type htype>
+    template <benchmarks_common::backend_type htype>
     struct degridding_benchmark_launcher
     {
         static benchmark_result launch(const gridding_benchmark::configuration &configuration,

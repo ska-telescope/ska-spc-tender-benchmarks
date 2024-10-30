@@ -6,4 +6,4 @@ ntimeslots: 2
 ntimesteps_per_subgrid: 128
 nchannels: 16
 subgrid_size: 32
-hardware_types: [cpu, gpu]
+backend_types: [cpu, gpu]

@@ -11,37 +11,58 @@
 
 namespace benchmarks_common
 {
-    enum class hardware_type
+    enum class backend_type
     {
         cpu,
         gpu,
+        mkl,
+        fftw,
         err
     };
 
-    inline std::string hardware_type_string(const benchmarks_common::hardware_type htype)
+    inline std::string backend_type_string(const benchmarks_common::backend_type htype)
     {
         switch (htype)
         {
-        case benchmarks_common::hardware_type::cpu:
+        case benchmarks_common::backend_type::cpu:
             return "cpu";
-        case benchmarks_common::hardware_type::gpu:
+        case benchmarks_common::backend_type::gpu:
             return "gpu";
+        case benchmarks_common::backend_type::mkl:
+            return "mkl";
+        case benchmarks_common::backend_type::fftw:
+            return "fftw";
         default:
             return "";
         }
     }
 
-    inline bool is_hardware_type_enabled(const benchmarks_common::hardware_type htype){
-    #ifdef ENABLE_CPU
-        if(htype == benchmarks_common::hardware_type::cpu){
+    inline bool is_backend_type_enabled(const benchmarks_common::backend_type htype)
+    {
+#ifdef ENABLE_CPU
+        if (htype == benchmarks_common::backend_type::cpu)
+        {
             return true;
         }
-    #endif
-    #ifdef ENABLE_GPU
-        if(htype == benchmarks_common::hardware_type::gpu){
+#endif
+#ifdef ENABLE_GPU
+        if (htype == benchmarks_common::backend_type::gpu)
+        {
             return true;
         }
-    #endif
+#endif
+#ifdef ENABLE_MKL
+        if (htype == benchmarks_common::backend_type::mkl)
+        {
+            return true;
+        }
+#endif
+#ifdef ENABLE_FFTW
+        if (htype == benchmarks_common::backend_type::fftw)
+        {
+            return true;
+        }
+#endif
         return false;
     }
 
@@ -90,9 +111,9 @@ namespace benchmarks_common
 
     std::string bytes_to_memory_size(const size_t n);
 
-    inline void log_and_abort(std::string_view message, int status_code = -1){
+    inline void log_and_abort(std::string_view message, int status_code = -1)
+    {
         std::cerr << "Error: " << message << "\n";
         std::exit(status_code);
     }
-    
 } // namespace benchmarks_common
