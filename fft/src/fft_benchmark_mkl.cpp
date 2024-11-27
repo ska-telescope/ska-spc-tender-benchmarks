@@ -97,8 +97,6 @@ namespace fft_benchmark
         const auto max_error = compute_fft_error(configuration, std::span{in.get(), in_size}, std::span{out.get(), out_size});
 
         mkl_status = check_mkl_status(DftiFreeDescriptor(&mkl_plan_handle));
-        //free(in);
-        //free(out);
 
         // No data for transfer times.
         benchmark_result result;
