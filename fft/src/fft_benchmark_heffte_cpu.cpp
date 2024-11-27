@@ -40,9 +40,20 @@ namespace fft_benchmark
             fft_benchmark::fft_helper<benchmarks_common::backend_type::cpu>::create_plan(configuration, MPI_COMM_WORLD);
         const auto init_us = timer.time();
 
-        std::unique_ptr<complex> in(new complex[batch_size * plan.size_inbox()]);
-        std::unique_ptr<complex> out(new complex[batch_size * plan.size_inbox()]);
-        std::unique_ptr<complex> workspace(new complex[batch_size * plan.size_workspace()]);
+        std::unique_ptr<complex> in;
+        std::unique_ptr<complex> out;
+        std::unique_ptr<complex> workspace;
+        try
+        {
+            in.reset(new complex[in_size]);
+            out.reset(new complex[out_size]);
+            workspace.reset(new complex[batch_size * plan.size_workspace()]);
+        }
+        catch(std::bad_alloc err)
+        {
+            std::cout << err.what() << std::endl;
+            return {};
+        }
 
         // Warmup run.
         fft_benchmark::fft_helper<benchmarks_common::backend_type::cpu>::run(plan, 1, configuration.ttype, in.get(),
